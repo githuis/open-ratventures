@@ -20,7 +20,6 @@ use ratback::{Character, User};
 use crate::client::Rattp;
 
 mod client;
-mod tests;
 mod tui;
 
 const MOB_HP: u8 = 5;
@@ -123,41 +122,14 @@ impl App {
 
             _ => match key_event.code {
                 KeyCode::Char('q') => self.exit(),
-                KeyCode::Left => {
-                    self.decrement_counter()?;
-                    self.check_health_update()?;
-                }
-                KeyCode::Right => {
-                    self.increment_counter()?;
-                    self.check_health_update()?
-                }
                 KeyCode::Char('r') => self.start_register_user(),
                 KeyCode::Char('c') => self.register_character(),
                 _ => {}
             },
         }
 
-        /*
-        match key_event.code {
-            KeyCode::Char('q') => self.exit(),
-            KeyCode::Left => {
-                self.decrement_counter()?;
-                self.check_health_update()?;
-            }
-            KeyCode::Right => {
-                self.increment_counter()?;
-                self.check_health_update()?
-            }
-            KeyCode::Char('r') => self.active_user = self.register_user(),
-            _ => {}
-        }
-        */
 
         Ok(())
-    }
-
-    fn set_text_input(&mut self, value: Option<String>) {
-        self.text_input = value;
     }
 
     fn get_and_clear_text_input(&mut self) -> Option<String> {
@@ -181,31 +153,6 @@ impl App {
 
     fn exit(&mut self) {
         self.exit = true;
-    }
-
-    fn decrement_counter(&mut self) -> Result<()> {
-        if self.counter >= 1 {
-            self.counter -= 1;
-            Ok(())
-        } else {
-            Err(eyre!(" tried to decrement below 0"))
-        }
-    }
-
-    fn increment_counter(&mut self) -> Result<()> {
-        self.counter += 1;
-        Ok(())
-    }
-
-    fn check_health_update(&mut self) -> Result<()> {
-        if self.counter >= MOB_HP {
-            self.counter -= MOB_HP;
-            self.health -= 5;
-            self.coins += 1;
-            self.experience += 3;
-        }
-
-        Ok(())
     }
 
     fn start_register_user(&mut self) {
@@ -257,19 +204,15 @@ impl Widget for &App {
 
 impl App {
     fn render_main(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
-        let title = Line::from(" Counter App Tutorial ".bold());
+        let title = Line::from(" Open Ratventures ".bold());
 
         let instructions = Line::from(vec![
-            " Decrement ".into(),
-            Span::styled("<Left>", text_style),
-            " Increment ".into(),
-            Span::styled("<Right>", text_style),
-            " Register ".into(),
+            " Register: ".into(),
             Span::styled("<R>", text_style),
-            " New Character ".into(),
+            " New Character: ".into(),
             Span::styled("<C>", text_style),
-            " Quit ".into(),
-            Span::styled("<Q> ", text_style),
+            " Quit: ".into(),
+            Span::styled("<Q>", text_style),
         ]);
 
         let block = Block::default()
@@ -278,12 +221,11 @@ impl App {
             .borders(Borders::ALL)
             .border_set(border::THICK);
 
-        let counter_text = Text::from(vec![Line::from(vec![
-            "Value: ".into(),
-            self.counter.to_string().yellow(),
+        let title = Text::from(vec![Line::from(vec![
+            "Welcome".into(),
         ])]);
 
-        Paragraph::new(counter_text)
+        Paragraph::new(title)
             .centered()
             .block(block)
             //.bg(Color::Rgb(116,86,116))
