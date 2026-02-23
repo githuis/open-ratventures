@@ -1,4 +1,3 @@
-
 use color_eyre::{
     Result,
     eyre::{WrapErr, eyre},
@@ -15,7 +14,7 @@ use ratatui::{
 };
 
 extern crate ratback;
-use ratback::{Character, User};
+use ratback::{data::Character, data::User, quest_data::Quest};
 
 use crate::client::Rattp;
 
@@ -27,13 +26,7 @@ const MOB_HP: u8 = 5;
 fn main() -> Result<()> {
     color_eyre::install()?;
     let mut terminal = tui::init()?;
-    let app_result = {
-        App {
-            health: 25,
-            ..App::default()
-        }
-    }
-    .run(&mut terminal);
+    let app_result = { App { ..App::default() } }.run(&mut terminal);
 
     if let Err(err) = tui::restore() {
         eprintln!(
@@ -45,14 +38,11 @@ fn main() -> Result<()> {
 
 #[derive(Debug, Default)]
 pub struct App {
-    health: i8,
-    experience: u8,
-    coins: u8,
-    counter: u8,
     exit: bool,
     state: AppState,
     active_user: Option<User>,
     active_character: Option<Character>,
+    active_quest: Option<Quest>,
     text_input: Option<String>,
     client: Rattp,
 }
@@ -124,10 +114,10 @@ impl App {
                 KeyCode::Char('q') => self.exit(),
                 KeyCode::Char('r') => self.start_register_user(),
                 KeyCode::Char('c') => self.register_character(),
+                KeyCode::Char('a') => self.start_quest(),
                 _ => {}
             },
         }
-
 
         Ok(())
     }
@@ -173,13 +163,19 @@ impl App {
             _ => None,
         }
     }
-    
-    fn register_character(&mut self) {
-        self.active_character = match self.client.post_new_character(){
-            Ok(new_char) => Some(new_char),
-            _ => None
-        };
 
+    fn register_character(&mut self) {
+        self.active_character = match self.client.post_new_character() {
+            Ok(new_char) => Some(new_char),
+            _ => None,
+        };
+    }
+
+    fn start_quest(&mut self) {
+        self.active_quest = match self.client.post_new_quest() {
+            Ok(new_q) => Some(new_q),
+            _ => None,
+        }
     }
 }
 
@@ -197,6 +193,7 @@ impl Widget for &App {
                 self.render_main(area, buf, text_style);
                 self.render_stats(buf, text_style);
                 self.render_user(buf, text_style);
+                self.render_quest(buf, text_style);
             }
         }
     }
@@ -221,9 +218,7 @@ impl App {
             .borders(Borders::ALL)
             .border_set(border::THICK);
 
-        let title = Text::from(vec![Line::from(vec![
-            "Welcome".into(),
-        ])]);
+        let title = Text::from(vec![Line::from(vec!["Welcome".into()])]);
 
         Paragraph::new(title)
             .centered()
@@ -265,13 +260,12 @@ impl App {
             Span::styled(chr.coins.to_string(), text_style),
         ]));
 
-
         health_text.push(Line::from(vec![
             "Experience: ".into(),
             Span::styled(chr.experience.to_string(), text_style),
             //Span::styled(self.experience.to_string(), text_style,),
         ]));
-        let stats_rect = Rect::new(5, 5, 50, 7);
+        let stats_rect = Rect::new(5, 6, 50, 7);
 
         Paragraph::new(health_text)
             //.scroll((1,0))
@@ -295,7 +289,7 @@ impl App {
             None => Line::from(vec!["No active user".into()]),
         };
         let user_text = Text::from(vec![current_user]);
-        let user_rect = Rect::new(5, 14, 50, 3);
+        let user_rect = Rect::new(5, 2, 50, 3);
 
         Paragraph::new(user_text)
             .block(user_block)
@@ -316,11 +310,33 @@ impl App {
             None => Line::from(vec!["Type a username".into()]),
         };
         let text = Text::from(vec![current_text]);
-        let rect = Rect::new(15, 15, 100, 3);
+        let rect = Rect::new(40, 15, 100, 3);
 
         Paragraph::new(text)
             .block(block)
             .bg(Color::Rgb(116, 86, 116))
             .render(rect, buf);
+    }
+
+    fn render_quest(&self, buf: &mut Buffer, text_style: Style) {
+        let block = Block::default()
+            .title(Line::from(" Quest: ".bold()))
+            .borders(Borders::ALL)
+            .border_set(border::THICK);
+
+        let current_quest = match &self.active_quest {
+            Some(x) => Line::from(vec![
+                " Quest started! ".into(),
+                //Span::styled(& , text_style),
+            ]),
+            None => return,
+        };
+        let text = Text::from(vec![current_quest]);
+        let user_rect = Rect::new(60, 2, 50, 3);
+
+        Paragraph::new(text)
+            .block(block)
+            .bg(Color::Rgb(116, 86, 116))
+            .render(user_rect, buf);
     }
 }

@@ -3,9 +3,13 @@ name = "ratback"
 version = "0.1.1"
 edition = "2024"
 
+[[bin]]
+name = "ratback-bin"
+path = "src/main.rs"
+
 [lib]
 name = "ratback"
-path = "src/data.rs"
+path = "src/lib.rs"
 
 [dependencies]
 axum = "0.8.8"

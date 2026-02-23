@@ -1,6 +1,6 @@
 use std::{collections::HashMap, error::Error};
 
-use ratback::{Character, User};
+use ratback::{data::Character, data::User, quest_data::Quest};
 use reqwest::blocking::Client;
 
 const HOST: &str = "http://localhost:3000/api/";
@@ -41,4 +41,25 @@ impl Rattp {
 
         Ok(character)
     }
+    
+    pub(crate) fn post_new_quest(&self) -> Result<Quest, Box<dyn Error>> {
+        let response = self.http.post(Self::destination("quest")).send()?.text()?;
+
+        let quest: Quest = serde_json::from_str(&response)?;
+
+        Ok(quest)
+    }
+
+    /*
+    
+    pub(crate) fn post_new<'a, T>(&self, typ: &'a T, path: String) -> Result<T, Box<dyn Error>> 
+        where T: serde::Deserialize<'a>
+    {
+        let response = self.http.post(Self::destination(&path)).send()?.text()?;
+
+        let quest: T = serde_json::from_str(&response)?;
+
+        Ok(quest)
+    }
+     */
 }

@@ -1,15 +1,14 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::data::{Character, Item, MAX_COMBAT_ENEMIES, MAX_ENCOUNTER_LENGTH, MAX_PARTY_SIZE};
 
-
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Combat {
     pub monsters: [Character; MAX_COMBAT_ENEMIES],
     pub turn: u16,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub enum Encounter {
     #[default]
     EmptyEncounter,
@@ -17,16 +16,16 @@ pub enum Encounter {
     NpcEncounter(EncounterReward),
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub enum EncounterReward{
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub enum EncounterReward {
     #[default]
     NoReward,
     CoinReward(u32),
     ExperienceReward(u32),
-    CoinAndExperienceReward(u32, u32)
+    CoinAndExperienceReward(u32, u32),
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Quest {
     pub members: [Character; MAX_PARTY_SIZE],
     pub encounters: [Encounter; MAX_ENCOUNTER_LENGTH],
@@ -35,5 +34,5 @@ pub struct Quest {
 
 pub enum CombatAction {
     WeaponAttack,
-    UseItem(Item)
+    UseItem(Item),
 }
