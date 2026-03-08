@@ -33,6 +33,7 @@ async fn main() -> Result<()> {
     let conn = SqlitePoolOptions::new()
         .max_connections(5)
         .connect("sqlite://data.db");
+    let shared_db = Arc::new(RwLock::new(conn));
 
     let app = Router::new() //with_state(ServerState::default())
         .route("/api/hello-world", get(hello_world))
@@ -40,6 +41,7 @@ async fn main() -> Result<()> {
         .route("/api/character", post(create_character))
         .nest("/api", ratback::quest::routes())
         .layer(Extension(shared_state))
+        .layer(Extension(shared_db))
         
         //.layer(Extension(dbconn))
         ;

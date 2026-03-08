@@ -13,28 +13,12 @@ pub fn routes() -> Router {
 async fn init_quest(Extension(state): Extension<SharedState>) -> Json<Quest> {
     let mut quest = Quest::default();
 
-    let mut j = 0;
-    for c in state.write().unwrap().characters.iter() {
-        match c {
-            Some(ch) => {
-                quest.members[j] = *ch;
-                j += 1;
-            }
-            None => break,
-        }
 
-        if j >= 3 {
-            break;
-        }
-    }
+    //jquest.encounters.push(make_encounter());
+    //quest.encounters.push(make_encounter());
 
-    quest.encounters.push(make_encounter());
-    quest.encounters.push(make_encounter());
 
-    let cloned = quest.clone();
-    state.write().unwrap().quests.push(Some(quest));
-
-    Json(cloned)
+    Json(quest)
 }
 
 async fn init_combat(Extension(state): Extension<SharedState>) -> Json<Quest> {
