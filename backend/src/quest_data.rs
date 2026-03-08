@@ -27,8 +27,8 @@ pub enum EncounterReward {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Quest {
-    pub members: [Character; MAX_PARTY_SIZE],
-    pub encounters: [Encounter; MAX_ENCOUNTER_LENGTH],
+    pub members: Vec<Character>,
+    pub encounters: Vec<Encounter>,
     pub open_encounter: Option<Encounter>,
 }
 

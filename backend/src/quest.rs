@@ -1,10 +1,8 @@
-
 use axum::{Extension, Json, Router, extract::State, routing::post};
 use serde_json::json;
 
-use crate::data::{Character, SharedState, ServerState};
-use crate::quest_data::Quest;
-
+use crate::data::{Character, ServerState, SharedState};
+use crate::quest_data::{Encounter, Quest};
 
 pub fn routes() -> Router {
     Router::new()
@@ -30,9 +28,19 @@ async fn init_quest(Extension(state): Extension<SharedState>) -> Json<Quest> {
         }
     }
 
-    Json(quest)
+    quest.encounters.push(make_encounter());
+    quest.encounters.push(make_encounter());
+
+    let cloned = quest.clone();
+    state.write().unwrap().quests.push(Some(quest));
+
+    Json(cloned)
 }
 
 async fn init_combat(Extension(state): Extension<SharedState>) -> Json<Quest> {
     Json(Quest::default())
+}
+
+fn make_encounter() -> Encounter {
+    Encounter::NpcEncounter(crate::quest_data::EncounterReward::ExperienceReward(32))
 }
