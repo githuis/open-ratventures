@@ -20,6 +20,7 @@ pub type SharedState = Arc<RwLock<ServerState>>;
 
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(sqlx::FromRow)]
 pub struct User {
     pub id: i32,
     pub username: String,

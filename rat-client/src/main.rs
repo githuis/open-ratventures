@@ -1,3 +1,5 @@
+use std::{rc::Rc, vec};
+
 use color_eyre::{
     Result,
     eyre::{WrapErr, eyre},
@@ -6,7 +8,7 @@ use ratatui::{
     Frame,
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     symbols::border,
     text::{Line, Span, Text},
@@ -179,27 +181,71 @@ impl App {
     }
 }
 
+
+
+/* ==========================
+    LAYOUT 
+=============================
+    */
+
+
+
+
+
+
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let text_style = Style::default()
             .fg(Color::Rgb(247, 255, 174))
             .add_modifier(Modifier::BOLD);
 
+
+        let parentLayout = Layout::default()
+            .direction(Direction::Horizontal)
+            .margin(1)
+            .constraints(vec![
+                Constraint::Percentage(30),
+                Constraint::Percentage(70),
+            ])
+            .split(area);
+
         match self.state {
             AppState::TextInput(_) => {
-                self.render_input(buf, text_style);
+                let rect = Rect::new(40, 15, 100, 3);
+                self.render_input(rect, buf, text_style);
             }
             _ => {
                 self.render_main(area, buf, text_style);
-                self.render_stats(buf, text_style);
-                self.render_user(buf, text_style);
-                self.render_quest(buf, text_style);
+                self.render_left_panel(parentLayout[0], buf);
             }
         }
     }
+
 }
 
 impl App {
+
+    fn render_left_panel(&self, area: Rect, buf: &mut Buffer){
+
+        let text_style = Style::default()
+            .fg(Color::Rgb(247, 255, 174))
+            .add_modifier(Modifier::BOLD);
+
+        let lhsLayout = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints(vec![
+            Constraint::Min(3),
+            Constraint::Min(7),
+            Constraint::Min(20),
+        ]).split(area);
+
+                self.render_user(lhsLayout[0], buf, text_style);
+                self.render_stats(lhsLayout[1], buf, text_style);
+                self.render_quest(lhsLayout[2],buf, text_style);
+
+    }
+
     fn render_main(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let title = Line::from(" Open Ratventures ".bold());
 
@@ -208,8 +254,10 @@ impl App {
             Span::styled("<R>", text_style),
             " New Character: ".into(),
             Span::styled("<C>", text_style),
+            " New Quest: ".into(),
+            Span::styled("<A>", text_style),
             " Quit: ".into(),
-            Span::styled("<Q>", text_style),
+            Span::styled("<Q> ", text_style),
         ]);
 
         let block = Block::default()
@@ -227,11 +275,11 @@ impl App {
             .render(area, buf);
     }
 
-    fn render_stats(&self, buf: &mut Buffer, text_style: Style) {
+    fn render_stats(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let stats_block = Block::default()
             .title(Line::from(" Stats ".bold()))
             .borders(Borders::ALL)
-            .border_set(border::THICK);
+            .border_set(border::THICK) ;
 
         // Only Render Stats if you have any stats
         let chr = match &self.active_character {
@@ -265,17 +313,17 @@ impl App {
             Span::styled(chr.experience.to_string(), text_style),
             //Span::styled(self.experience.to_string(), text_style,),
         ]));
-        let stats_rect = Rect::new(5, 6, 50, 7);
 
         Paragraph::new(health_text)
             //.scroll((1,0))
             //.centered()
             .block(stats_block)
             .bg(Color::Rgb(116, 86, 116))
-            .render(stats_rect, buf);
+            .render(area, buf)
+            ;
     }
 
-    fn render_user(&self, buf: &mut Buffer, text_style: Style) {
+    fn render_user(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let user_block = Block::default()
             .title(Line::from(" User: ".bold()))
             .borders(Borders::ALL)
@@ -289,15 +337,14 @@ impl App {
             None => Line::from(vec!["No active user".into()]),
         };
         let user_text = Text::from(vec![current_user]);
-        let user_rect = Rect::new(5, 2, 50, 3);
 
         Paragraph::new(user_text)
             .block(user_block)
             .bg(Color::Rgb(116, 86, 116))
-            .render(user_rect, buf);
+            .render(area, buf);
     }
 
-    fn render_input(&self, buf: &mut Buffer, text_style: Style) {
+    fn render_input(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let block = Block::default()
             .title(Line::from(
                 " Input username - Enter to Finish, Esc to stop ".bold(),
@@ -310,15 +357,14 @@ impl App {
             None => Line::from(vec!["Type a username".into()]),
         };
         let text = Text::from(vec![current_text]);
-        let rect = Rect::new(40, 15, 100, 3);
 
         Paragraph::new(text)
             .block(block)
             .bg(Color::Rgb(116, 86, 116))
-            .render(rect, buf);
+            .render(area, buf);
     }
 
-    fn render_quest(&self, buf: &mut Buffer, text_style: Style) {
+    fn render_quest(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let block = Block::default()
             .title(Line::from(" Quest: ".bold()))
             .borders(Borders::ALL)
@@ -332,11 +378,10 @@ impl App {
             None => return,
         };
         let text = Text::from(vec![current_quest]);
-        let user_rect = Rect::new(60, 2, 50, 3);
 
         Paragraph::new(text)
             .block(block)
             .bg(Color::Rgb(116, 86, 116))
-            .render(user_rect, buf);
+            .render(area, buf);
     }
 }

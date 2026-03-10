@@ -7,7 +7,7 @@ use axum::{
 };
 use color_eyre::Result;
 use ratback::data::{ServerState, SharedState};
-use sqlx::{sqlite::SqlitePoolOptions};
+use sqlx::{Connection, SqliteConnection, sqlite::SqlitePoolOptions};
 
 use serde_json::{Value, json};
 use std::{
@@ -33,6 +33,7 @@ async fn main() -> Result<()> {
     let conn = SqlitePoolOptions::new()
         .max_connections(5)
         .connect("sqlite://data.db");
+
     let shared_db = Arc::new(RwLock::new(conn));
 
     let app = Router::new() //with_state(ServerState::default())
@@ -41,7 +42,7 @@ async fn main() -> Result<()> {
         .route("/api/character", post(create_character))
         .nest("/api", ratback::quest::routes())
         .layer(Extension(shared_state))
-        .layer(Extension(shared_db))
+        //.layer(Extension(shared_db))
         
         //.layer(Extension(dbconn))
         ;
@@ -58,21 +59,35 @@ async fn hello_world() -> &'static str {
     "Hello World"
 }
 
-async fn register(
-    Extension(state): Extension<SharedState>,
-    //Extension(conn): Extension<SqliteConnection>,
-    username: String,
-) -> Json<User> {
-    let usr = User {
-        username: username,
-        ..Default::default()
+async fn register( Extension(state): Extension<SharedState>, username: String,) -> Json<User> {
+    let mut try_conn = SqliteConnection::connect("sqlite://data.db").await.unwrap();
+
+
+    let mut stream  = sqlx::query_as::<_, User>("SELECT * FROM users where username = $1")
+        .bind(username.clone())
+        .fetch_one(&mut try_conn).await;
+
+    let new_user = match stream {
+        Ok(u) => {
+            println!("Fetched user from database {}", u.username);
+
+            u
+        },
+        Err(e) => {
+            println!("Couldn't find user with name {}, registered new user. Msg: {}", username.clone(), e.to_string());
+
+            User {
+            username: username,
+            ..Default::default()
+        }
+    },
     };
 
-    println!("Registered user: {}", usr.clone().username);
-    let result = Json(usr.clone());
-    //conn.execute("INSERT INTO user (username, character)", params);
+    //try_conn.execute(sqlx::query("insert into user(username) values ($1)")).bind(new_user.clone().username);
 
-    state.write().unwrap().users.push(Some(usr));
+    println!("Registered user: {}", new_user.clone().username);
+    let result = Json(new_user.clone());
+    //conn.execute("INSERT INTO user (username, character)", params);
 
     result
 }
