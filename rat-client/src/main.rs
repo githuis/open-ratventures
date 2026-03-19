@@ -16,7 +16,10 @@ use ratatui::{
 };
 
 extern crate ratback;
-use ratback::{data::Character, data::User, quest_data::Quest};
+use ratback::{
+    data::{Character, CharacterWrapper, User},
+    quest_data::Quest,
+};
 
 use crate::client::Rattp;
 
@@ -43,7 +46,7 @@ pub struct App {
     exit: bool,
     state: AppState,
     active_user: Option<User>,
-    active_character: Option<Character>,
+    active_character: Option<CharacterWrapper>,
     active_quest: Option<Quest>,
     text_input: Option<String>,
     client: Rattp,
@@ -167,8 +170,14 @@ impl App {
     }
 
     fn register_character(&mut self) {
-        self.active_character = match self.client.post_new_character() {
-            Ok(new_char) => Some(new_char),
+        self.active_character = match self
+            .client
+            .post_new_character(&self.active_user.as_mut().unwrap().id)
+        {
+            Ok(new_char) => {
+                print!("Found char");
+                Some(new_char)
+            }
             _ => None,
         };
     }
@@ -181,17 +190,10 @@ impl App {
     }
 }
 
-
-
 /* ==========================
-    LAYOUT 
+    LAYOUT
 =============================
     */
-
-
-
-
-
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
@@ -199,14 +201,10 @@ impl Widget for &App {
             .fg(Color::Rgb(247, 255, 174))
             .add_modifier(Modifier::BOLD);
 
-
         let parentLayout = Layout::default()
             .direction(Direction::Horizontal)
             .margin(1)
-            .constraints(vec![
-                Constraint::Percentage(30),
-                Constraint::Percentage(70),
-            ])
+            .constraints(vec![Constraint::Percentage(30), Constraint::Percentage(70)])
             .split(area);
 
         match self.state {
@@ -220,30 +218,27 @@ impl Widget for &App {
             }
         }
     }
-
 }
 
 impl App {
-
-    fn render_left_panel(&self, area: Rect, buf: &mut Buffer){
-
+    fn render_left_panel(&self, area: Rect, buf: &mut Buffer) {
         let text_style = Style::default()
             .fg(Color::Rgb(247, 255, 174))
             .add_modifier(Modifier::BOLD);
 
         let lhsLayout = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints(vec![
-            Constraint::Min(3),
-            Constraint::Min(7),
-            Constraint::Min(20),
-        ]).split(area);
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints(vec![
+                Constraint::Min(3),
+                Constraint::Min(7),
+                Constraint::Min(20),
+            ])
+            .split(area);
 
-                self.render_user(lhsLayout[0], buf, text_style);
-                self.render_stats(lhsLayout[1], buf, text_style);
-                self.render_quest(lhsLayout[2],buf, text_style);
-
+        self.render_user(lhsLayout[0], buf, text_style);
+        self.render_stats(lhsLayout[1], buf, text_style);
+        self.render_quest(lhsLayout[2], buf, text_style);
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -279,38 +274,40 @@ impl App {
         let stats_block = Block::default()
             .title(Line::from(" Stats ".bold()))
             .borders(Borders::ALL)
-            .border_set(border::THICK) ;
+            .border_set(border::THICK);
 
         // Only Render Stats if you have any stats
-        let chr = match &self.active_character {
+        let wrapper = match &self.active_character {
             Some(c) => c,
-            None => return,
+            None => {
+                return
+            },
         };
 
         let mut health_text = vec![];
 
         health_text.push(Line::from(vec![
             "Health: ".into(),
-            Span::styled(chr.unit.stats.health.to_string(), text_style),
+            Span::styled(wrapper.unit.health.to_string(), text_style),
             "/".into(),
-            Span::styled(chr.unit.max_stats.health.to_string(), text_style),
+            Span::styled(wrapper.unit.max_health.to_string(), text_style),
         ]));
 
         health_text.push(Line::from(vec![
             "Energy: ".into(),
-            Span::styled(chr.unit.stats.energy.to_string(), text_style),
+            Span::styled(wrapper.unit.energy.to_string(), text_style),
             "/".into(),
-            Span::styled(chr.unit.max_stats.energy.to_string(), text_style),
+            Span::styled(wrapper.unit.max_energy.to_string(), text_style),
         ]));
 
         health_text.push(Line::from(vec![
             "Coins: ".into(),
-            Span::styled(chr.coins.to_string(), text_style),
+            Span::styled(wrapper.character.coins.to_string(), text_style),
         ]));
 
         health_text.push(Line::from(vec![
             "Experience: ".into(),
-            Span::styled(chr.experience.to_string(), text_style),
+            Span::styled(wrapper.character.experience.to_string(), text_style),
             //Span::styled(self.experience.to_string(), text_style,),
         ]));
 
@@ -319,8 +316,7 @@ impl App {
             //.centered()
             .block(stats_block)
             .bg(Color::Rgb(116, 86, 116))
-            .render(area, buf)
-            ;
+            .render(area, buf);
     }
 
     fn render_user(&self, area: Rect, buf: &mut Buffer, text_style: Style) {

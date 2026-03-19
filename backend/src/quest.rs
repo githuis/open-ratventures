@@ -13,10 +13,8 @@ pub fn routes() -> Router {
 async fn init_quest(Extension(state): Extension<SharedState>) -> Json<Quest> {
     let mut quest = Quest::default();
 
-
     //jquest.encounters.push(make_encounter());
     //quest.encounters.push(make_encounter());
-
 
     Json(quest)
 }
