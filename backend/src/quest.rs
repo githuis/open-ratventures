@@ -2,6 +2,7 @@ use axum::{Extension, Json, Router, extract::State, routing::post};
 use serde_json::json;
 
 use crate::data::{Character, ServerState, SharedState};
+use crate::db::{self, DbConnection};
 use crate::quest_data::{Encounter, Quest};
 
 pub fn routes() -> Router {
@@ -10,12 +11,12 @@ pub fn routes() -> Router {
         .route("/combat", post(init_combat))
 }
 
-async fn init_quest(Extension(state): Extension<SharedState>) -> Json<Quest> {
-    let mut quest = Quest::default();
+async fn init_quest(Extension(db): Extension<DbConnection>, Json(user_id): Json<i32>) -> Json<Quest> {
+    if let Some(existing) = db.get_quest_for_user(user_id).await {
+        return Json(existing);
+    }
 
-    //jquest.encounters.push(make_encounter());
-    //quest.encounters.push(make_encounter());
-
+    let quest = db.new_quest().await.unwrap();
     Json(quest)
 }
 

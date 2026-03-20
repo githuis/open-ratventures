@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::data::{Character, Item, MAX_COMBAT_ENEMIES, MAX_ENCOUNTER_LENGTH, MAX_PARTY_SIZE};
+use crate::data::{Character, Item, MAX_COMBAT_ENEMIES, MAX_ENCOUNTER_LENGTH, MAX_PARTY_SIZE, Unit};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Combat {
-    pub monsters: [Character; MAX_COMBAT_ENEMIES],
+    pub monsters: Vec<Unit>,
     pub turn: u16,
 }
 
@@ -25,11 +25,18 @@ pub enum EncounterReward {
     CoinAndExperienceReward(u32, u32),
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, sqlx::FromRow, sqlx::Type)]
 pub struct Quest {
-    pub members: Vec<Character>,
+    pub id: i32,
+    #[sqlx(skip)]
     pub encounters: Vec<Encounter>,
-    pub open_encounter: Option<Encounter>,
+    pub current_encounter: i32,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, sqlx::FromRow, sqlx::Type)]
+pub struct Party {
+    pub members: Vec<i32>, //Character id
+    pub quest_id: i32,
 }
 
 pub enum CombatAction {

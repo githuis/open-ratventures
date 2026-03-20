@@ -42,8 +42,8 @@ impl Rattp {
         Ok(character)
     }
     
-    pub(crate) fn post_new_quest(&self) -> Result<Quest, Box<dyn Error>> {
-        let response = self.http.post(Self::destination("quest")).send()?.text()?;
+    pub(crate) fn post_new_quest(&self, user_id: i32) -> Result<Quest, Box<dyn Error>> {
+        let response = self.http.post(Self::destination("quest")).json(&user_id).send()?.text()?;
 
         let quest: Quest = serde_json::from_str(&response)?;
 
