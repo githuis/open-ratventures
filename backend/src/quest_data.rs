@@ -62,6 +62,8 @@ pub struct Quest {
     #[sqlx(skip)]
     pub encounters: Vec<Encounter>,
     pub current_encounter: i32,
+    #[serde(default)]
+    pub current_node_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, sqlx::FromRow, sqlx::Type)]

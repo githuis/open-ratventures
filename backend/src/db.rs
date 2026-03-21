@@ -113,10 +113,10 @@ impl DbConnection {
 
     pub async fn get_quest_by_id(&self, quest_id: i32) -> Option<Quest> {
         #[derive(sqlx::FromRow)]
-        struct QuestRow { id: i32, current_encounter: i32, encounters_json: String }
+        struct QuestRow { id: i32, current_encounter: i32, encounters_json: String, current_node: Option<String> }
 
         let row = sqlx::query_as::<_, QuestRow>(
-            "SELECT id, current_encounter, encounters_json FROM quests WHERE id = $1 AND status = 'active'",
+            "SELECT id, current_encounter, encounters_json, current_node FROM quests WHERE id = $1 AND status = 'active'",
         )
         .bind(quest_id)
         .fetch_optional(&self.pool)
@@ -125,15 +125,15 @@ impl DbConnection {
         .flatten()?;
 
         let encounters: Vec<Encounter> = serde_json::from_str(&row.encounters_json).unwrap_or_default();
-        Some(Quest { id: row.id, current_encounter: row.current_encounter, encounters })
+        Some(Quest { id: row.id, current_encounter: row.current_encounter, encounters, current_node_id: row.current_node })
     }
 
     pub async fn get_quest_for_user(&self, user_id: i32) -> Option<Quest> {
         #[derive(sqlx::FromRow)]
-        struct QuestRow { id: i32, current_encounter: i32, encounters_json: String }
+        struct QuestRow { id: i32, current_encounter: i32, encounters_json: String, current_node: Option<String> }
 
         let row = sqlx::query_as::<_, QuestRow>(
-            "SELECT q.id, q.current_encounter, q.encounters_json
+            "SELECT q.id, q.current_encounter, q.encounters_json, q.current_node
              FROM quests q
              JOIN quest_members qm ON q.id = qm.quest_id
              JOIN characters c ON c.id = qm.character_id
@@ -147,7 +147,7 @@ impl DbConnection {
         .flatten()?;
 
         let encounters: Vec<Encounter> = serde_json::from_str(&row.encounters_json).unwrap_or_default();
-        Some(Quest { id: row.id, current_encounter: row.current_encounter, encounters })
+        Some(Quest { id: row.id, current_encounter: row.current_encounter, encounters, current_node_id: row.current_node })
     }
 
     pub async fn list_open_quests(&self) -> Result<Vec<QuestSummary>> {
@@ -200,7 +200,7 @@ impl DbConnection {
 
         self.join_quest(id as i32, user_id).await?;
 
-        Ok(Quest { id: id as i32, encounters, current_encounter: 0 })
+        Ok(Quest { id: id as i32, encounters, current_encounter: 0, current_node_id: None })
     }
 
     pub async fn get_quest_members(&self, quest_id: i32) -> Result<Vec<CharacterWrapper>> {
@@ -224,20 +224,49 @@ impl DbConnection {
         Ok(members)
     }
 
+    pub async fn update_quest_encounters(&self, quest_id: i32, current_encounter: i32, current_node: Option<String>, encounters: Vec<Encounter>) -> Result<()> {
+        let json = serde_json::to_string(&encounters)?;
+        sqlx::query("UPDATE quests SET encounters_json = $1, current_encounter = $2, current_node = $3 WHERE id = $4")
+            .bind(json)
+            .bind(current_encounter)
+            .bind(current_node)
+            .bind(quest_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn complete_quest(&self, quest_id: i32, user_id: i32) -> Result<CharacterWrapper> {
-        sqlx::query("UPDATE quests SET status = 'complete' WHERE id = $1")
+        sqlx::query("UPDATE quests SET status = 'completed' WHERE id = $1")
             .bind(quest_id)
             .execute(&self.pool)
             .await?;
 
+        // Reward all members of the quest
         sqlx::query(
             "UPDATE characters SET experience = experience + 15, coins = coins + 5
-             WHERE user_id = $1",
+             WHERE id IN (SELECT character_id FROM quest_members WHERE quest_id = $1)",
         )
-        .bind(user_id)
+        .bind(quest_id)
         .execute(&self.pool)
         .await?;
 
+        let character = sqlx::query_as::<_, Character>(
+            "SELECT * FROM characters WHERE user_id = $1",
+        )
+        .bind(user_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let unit = sqlx::query_as::<_, Unit>("SELECT * FROM units WHERE ref_id = $1")
+            .bind(character.id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(CharacterWrapper { character, unit })
+    }
+
+    pub async fn get_character_by_user_id(&self, user_id: i32) -> Result<CharacterWrapper> {
         let character = sqlx::query_as::<_, Character>(
             "SELECT * FROM characters WHERE user_id = $1",
         )

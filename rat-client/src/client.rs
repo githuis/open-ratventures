@@ -54,13 +54,19 @@ impl Rattp {
         Ok(dialogue)
     }
 
-    pub fn put_encounters(&self, quest_id: i32, encounters: &Vec<ratback::quest_data::Encounter>) -> Result<(), Box<dyn Error>> {
-        self.http.put(Self::destination(&format!("quest/{quest_id}/encounters"))).json(encounters).send()?;
+    pub fn put_encounters(&self, quest_id: i32, current_encounter: i32, current_node_id: Option<&str>, encounters: &Vec<ratback::quest_data::Encounter>) -> Result<(), Box<dyn Error>> {
+        let body = serde_json::json!({ "current_encounter": current_encounter, "current_node_id": current_node_id, "encounters": encounters });
+        self.http.put(Self::destination(&format!("quest/{quest_id}/encounters"))).json(&body).send()?;
         Ok(())
     }
 
     pub fn get_quest(&self, quest_id: i32) -> Result<Quest, Box<dyn Error>> {
         let response = self.http.get(Self::destination(&format!("quest/{quest_id}"))).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn get_character(&self, user_id: i32) -> Result<CharacterWrapper, Box<dyn Error>> {
+        let response = self.http.get(Self::destination(&format!("character/{user_id}"))).send()?.text()?;
         Ok(serde_json::from_str(&response)?)
     }
 

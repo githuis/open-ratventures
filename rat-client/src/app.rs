@@ -227,19 +227,52 @@ impl App {
         }
     }
 
+    fn sync_quest_state(&mut self) {
+        let node = match &self.state {
+            AppState::Dialogue { current_node, .. } => Some(current_node.clone()),
+            _ => None,
+        };
+        if let Some(q) = &self.active_quest {
+            let node_ref = node.as_deref();
+            let _ = self.client.put_encounters(q.id, q.current_encounter, node_ref, &q.encounters);
+        }
+    }
+
     fn refresh_quest_state(&mut self) {
         let quest_id = match &self.active_quest {
             Some(q) => q.id,
             None => return,
         };
-        if let Ok(updated) = self.client.get_quest(quest_id) {
-            if let Some(q) = self.active_quest.as_mut() {
-                q.current_encounter = updated.current_encounter;
-                q.encounters = updated.encounters;
+        match self.client.get_quest(quest_id) {
+            Ok(updated) => {
+                let enc_changed = self.active_quest.as_ref()
+                    .map(|q| q.current_encounter != updated.current_encounter)
+                    .unwrap_or(false);
+                if let Some(q) = self.active_quest.as_mut() {
+                    q.current_encounter = updated.current_encounter;
+                    q.encounters = updated.encounters;
+                }
+                if enc_changed {
+                    self.check_current_encounter();
+                } else if let Some(node_id) = updated.current_node_id {
+                    if let AppState::Dialogue { current_node, .. } = &mut self.state {
+                        *current_node = node_id;
+                    }
+                }
+                self.fetch_party_members();
             }
-            self.check_current_encounter();
+            Err(_) => {
+                // Quest is no longer active (completed by another client)
+                self.active_quest = None;
+                self.party_members.clear();
+                self.state = AppState::Main;
+                if let Some(user) = &self.active_user {
+                    if let Ok(updated) = self.client.get_character(user.id) {
+                        self.active_character = Some(updated);
+                    }
+                }
+            }
         }
-        self.fetch_party_members();
     }
 
     fn fetch_party_members(&mut self) {
@@ -265,7 +298,9 @@ impl App {
         match enc {
             Some(Encounter::NpcEncounter(id)) => {
                 if let Ok(dialogue) = self.client.get_dialogue(&id) {
-                    let start = dialogue.start.clone();
+                    let start = self.active_quest.as_ref()
+                        .and_then(|q| q.current_node_id.clone())
+                        .unwrap_or_else(|| dialogue.start.clone());
                     self.state = AppState::Dialogue { dialogue, current_node: start };
                 }
             }
@@ -307,8 +342,12 @@ impl App {
         match (next, outcome) {
             (Some(node_id), _) => {
                 if let AppState::Dialogue { current_node, .. } = &mut self.state {
-                    *current_node = node_id;
+                    *current_node = node_id.clone();
                 }
+                if let Some(q) = self.active_quest.as_mut() {
+                    q.current_node_id = Some(node_id);
+                }
+                self.sync_quest_state();
             }
             (None, Some(outcome)) => {
                 self.apply_dialogue_outcome(outcome);
@@ -318,6 +357,7 @@ impl App {
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_encounter += 1;
                 }
+                self.sync_quest_state();
             }
         }
     }
@@ -344,6 +384,7 @@ impl App {
             }
             DialogueOutcome::Escape => {}
         }
+        self.sync_quest_state();
         self.check_current_encounter();
     }
 
@@ -370,7 +411,7 @@ impl App {
         };
         // push updated encounter state to backend
         if let Some(q) = &self.active_quest {
-            let _ = self.client.put_encounters(q.id, &q.encounters);
+            let _ = self.client.put_encounters(q.id, q.current_encounter, None, &q.encounters);
         }
 
         if encounter_cleared {

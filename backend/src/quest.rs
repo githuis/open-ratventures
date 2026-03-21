@@ -2,7 +2,7 @@ use axum::{
     Extension, Json, Router,
     extract::Path,
     http::StatusCode,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use rand::Rng;
 
@@ -12,13 +12,22 @@ use crate::quest_data::{Combat, Dialogue, Encounter, Quest, QuestSummary};
 
 pub fn routes() -> Router {
     Router::new()
+        .route("/character/{user_id}", get(get_character))
         .route("/quest", post(init_quest))
         .route("/quest/open", get(open_quests))
         .route("/quest/join", post(join_quest))
         .route("/quest/complete", post(complete_quest))
         .route("/quest/{id}", get(get_quest))
+        .route("/quest/{id}/encounters", put(update_encounters))
         .route("/quest/{id}/members", get(quest_members))
         .route("/dialogue/{id}", get(get_dialogue))
+}
+
+async fn get_character(
+    Extension(db): Extension<DbConnection>,
+    Path(user_id): Path<i32>,
+) -> Result<Json<CharacterWrapper>, StatusCode> {
+    db.get_character_by_user_id(user_id).await.map(Json).map_err(|_| StatusCode::NOT_FOUND)
 }
 
 async fn init_quest(
@@ -59,6 +68,24 @@ async fn get_quest(
     Path(id): Path<i32>,
 ) -> Result<Json<Quest>, StatusCode> {
     db.get_quest_by_id(id).await.map(Json).ok_or(StatusCode::NOT_FOUND)
+}
+
+#[derive(serde::Deserialize)]
+struct UpdateEncountersRequest {
+    current_encounter: i32,
+    current_node_id: Option<String>,
+    encounters: Vec<Encounter>,
+}
+
+async fn update_encounters(
+    Extension(db): Extension<DbConnection>,
+    Path(id): Path<i32>,
+    Json(req): Json<UpdateEncountersRequest>,
+) -> Result<StatusCode, StatusCode> {
+    db.update_quest_encounters(id, req.current_encounter, req.current_node_id, req.encounters)
+        .await
+        .map(|_| StatusCode::NO_CONTENT)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 async fn quest_members(
