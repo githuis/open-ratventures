@@ -8,8 +8,9 @@ use sqlx::SqliteConnection;
 use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
-use crate::data::{Character, CharacterWrapper, MAX_ENCOUNTER_LENGTH, Unit, User};
-use crate::quest_data::{Combat, Encounter, EncounterReward, Quest};
+use crate::data::{Character, CharacterWrapper, MAX_ENCOUNTER_LENGTH, Unit, User, random_fantasy_name};
+use crate::quest_data::QuestSummary;
+use crate::quest_data::{Combat, Encounter, Quest};
 
 #[derive(Clone)]
 pub struct DbConnection {
@@ -21,6 +22,15 @@ impl DbConnection {
         let db_options = SqliteConnectOptions::from_str("sqlite://data.db")?.to_owned();
 
         let pool = SqlitePoolOptions::new().connect_with(db_options).await?;
+
+        println!("Checking for migrations..");
+        sqlx::migrate!("./migrations").run(&pool).await?;
+        println!("Finished running migrating db");
+
+        // On startup, wipe in-progress quests so lobbies start clean each session
+        sqlx::query("DELETE FROM quests WHERE status = 'active'")
+            .execute(&pool)
+            .await?;
 
         Ok(Self { pool })
     }
@@ -35,56 +45,95 @@ impl DbConnection {
     //}
 
     pub async fn register_user(&self, username: String) -> Result<User> {
-        let mut stream = sqlx::query_as::<_, User>("SELECT * FROM users where username = $1")
-            .bind(username.clone())
+        if let Ok(existing) = sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
+            .bind(&username)
             .fetch_one(&self.pool)
-            .await;
+            .await
+        {
+            println!("Fetched existing user: {}", existing.username);
+            return Ok(existing);
+        }
 
-        let new_user = match stream {
-            Ok(u) => {
-                println!("Fetched user from database {}", u.username);
-                u
-            }
-            Err(e) => {
-                println!(
-                    "Couldn't find user with name {}, registered new user. Msg: {}",
-                    username.clone(),
-                    e.to_string()
-                );
+        let id = sqlx::query("INSERT INTO users (username) VALUES ($1)")
+            .bind(&username)
+            .execute(&self.pool)
+            .await?
+            .last_insert_rowid();
 
-                User {
-                    username: username,
-                    ..Default::default()
-                }
-            }
-        };
-
-        println!("Registered user: {}", new_user.clone().username);
-
-        Ok(new_user)
+        println!("Registered new user: {}", username);
+        Ok(User { id: id as i32, username })
     }
 
     pub async fn get_character(&self, user_id: String) -> Result<CharacterWrapper> {
-        let stream = sqlx::query_as::<_, Character>("Select * from characters where user_id = $1")
-            .bind(user_id)
+        let user_id: i32 = user_id.parse()?;
+
+        let existing = sqlx::query_as::<_, Character>(
+            "SELECT * FROM characters WHERE user_id = $1",
+        )
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let character = match existing {
+            Some(c) => c,
+            None => self.create_character(user_id).await?,
+        };
+
+        let unit = sqlx::query_as::<_, Unit>("SELECT * FROM units WHERE ref_id = $1")
+            .bind(character.id)
             .fetch_one(&self.pool)
             .await?;
 
-        let stats = sqlx::query_as::<_, Unit>("select * from units where ref_id = $1")
-            .bind(stream.id)
-            .fetch_one(&self.pool)
-            .await?;
+        Ok(CharacterWrapper { character, unit })
+    }
 
-        println!("Returning character for user");
-        Ok(CharacterWrapper {
-            unit: stats,
-            character: stream,
-        })
+    async fn create_character(&self, user_id: i32) -> Result<Character> {
+        let name = random_fantasy_name();
+        let char_id = sqlx::query(
+            "INSERT INTO characters (user_id, name, experience, coins) VALUES ($1, $2, 0, 0)",
+        )
+        .bind(user_id)
+        .bind(name)
+        .execute(&self.pool)
+        .await?
+        .last_insert_rowid();
+
+        sqlx::query(
+            "INSERT INTO units (ref_id, health, energy, max_health, max_energy) VALUES ($1, 100, 50, 100, 50)",
+        )
+        .bind(char_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(sqlx::query_as::<_, Character>("SELECT * FROM characters WHERE id = $1")
+            .bind(char_id as i32)
+            .fetch_one(&self.pool)
+            .await?)
+    }
+
+    pub async fn get_quest_by_id(&self, quest_id: i32) -> Option<Quest> {
+        #[derive(sqlx::FromRow)]
+        struct QuestRow { id: i32, current_encounter: i32, encounters_json: String }
+
+        let row = sqlx::query_as::<_, QuestRow>(
+            "SELECT id, current_encounter, encounters_json FROM quests WHERE id = $1 AND status = 'active'",
+        )
+        .bind(quest_id)
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()?;
+
+        let encounters: Vec<Encounter> = serde_json::from_str(&row.encounters_json).unwrap_or_default();
+        Some(Quest { id: row.id, current_encounter: row.current_encounter, encounters })
     }
 
     pub async fn get_quest_for_user(&self, user_id: i32) -> Option<Quest> {
-        sqlx::query_as::<_, Quest>(
-            "SELECT q.id, q.current_encounter
+        #[derive(sqlx::FromRow)]
+        struct QuestRow { id: i32, current_encounter: i32, encounters_json: String }
+
+        let row = sqlx::query_as::<_, QuestRow>(
+            "SELECT q.id, q.current_encounter, q.encounters_json
              FROM quests q
              JOIN quest_members qm ON q.id = qm.quest_id
              JOIN characters c ON c.id = qm.character_id
@@ -95,20 +144,112 @@ impl DbConnection {
         .fetch_optional(&self.pool)
         .await
         .ok()
-        .flatten()
+        .flatten()?;
+
+        let encounters: Vec<Encounter> = serde_json::from_str(&row.encounters_json).unwrap_or_default();
+        Some(Quest { id: row.id, current_encounter: row.current_encounter, encounters })
     }
 
-    pub async fn new_quest(&self, encounters: Vec<Encounter>) -> Result<Quest> {
+    pub async fn list_open_quests(&self) -> Result<Vec<QuestSummary>> {
+        #[derive(sqlx::FromRow)]
+        struct Row { id: i32, member_count: i64 }
 
-        let id = sqlx::query("INSERT INTO quests (current_encounter) VALUES (0)")
+        let rows = sqlx::query_as::<_, Row>(
+            "SELECT q.id, COUNT(qm.character_id) as member_count
+             FROM quests q
+             LEFT JOIN quest_members qm ON q.id = qm.quest_id
+             WHERE q.status = 'active'
+             GROUP BY q.id
+             HAVING COUNT(qm.character_id) BETWEEN 1 AND $1 - 1",
+        )
+        .bind(crate::data::MAX_PARTY_SIZE as i64)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.iter().map(|r| QuestSummary { id: r.id, member_count: r.member_count as i32 }).collect())
+    }
+
+    pub async fn join_quest(&self, quest_id: i32, user_id: i32) -> Result<Quest> {
+        let character_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        let slot: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM quest_members WHERE quest_id = $1")
+            .bind(quest_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        sqlx::query("INSERT OR IGNORE INTO quest_members (quest_id, character_id, slot_index) VALUES ($1, $2, $3)")
+            .bind(quest_id)
+            .bind(character_id)
+            .bind(slot as i32)
+            .execute(&self.pool)
+            .await?;
+
+        self.get_quest_for_user(user_id).await.ok_or_else(|| color_eyre::eyre::eyre!("quest not found after join"))
+    }
+
+    pub async fn new_quest(&self, encounters: Vec<Encounter>, user_id: i32) -> Result<Quest> {
+        let encounters_json = serde_json::to_string(&encounters)?;
+        let id = sqlx::query("INSERT INTO quests (current_encounter, encounters_json) VALUES (0, $1)")
+            .bind(&encounters_json)
             .execute(&self.pool)
             .await?
             .last_insert_rowid();
 
-        Ok(Quest {
-            id: id as i32,
-            encounters,
-            current_encounter: 0,
-        })
+        self.join_quest(id as i32, user_id).await?;
+
+        Ok(Quest { id: id as i32, encounters, current_encounter: 0 })
+    }
+
+    pub async fn get_quest_members(&self, quest_id: i32) -> Result<Vec<CharacterWrapper>> {
+        let characters = sqlx::query_as::<_, Character>(
+            "SELECT c.* FROM characters c
+             JOIN quest_members qm ON c.id = qm.character_id
+             WHERE qm.quest_id = $1",
+        )
+        .bind(quest_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut members = Vec::new();
+        for character in characters {
+            let unit = sqlx::query_as::<_, Unit>("SELECT * FROM units WHERE ref_id = $1")
+                .bind(character.id)
+                .fetch_one(&self.pool)
+                .await?;
+            members.push(CharacterWrapper { character, unit });
+        }
+        Ok(members)
+    }
+
+    pub async fn complete_quest(&self, quest_id: i32, user_id: i32) -> Result<CharacterWrapper> {
+        sqlx::query("UPDATE quests SET status = 'complete' WHERE id = $1")
+            .bind(quest_id)
+            .execute(&self.pool)
+            .await?;
+
+        sqlx::query(
+            "UPDATE characters SET experience = experience + 15, coins = coins + 5
+             WHERE user_id = $1",
+        )
+        .bind(user_id)
+        .execute(&self.pool)
+        .await?;
+
+        let character = sqlx::query_as::<_, Character>(
+            "SELECT * FROM characters WHERE user_id = $1",
+        )
+        .bind(user_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let unit = sqlx::query_as::<_, Unit>("SELECT * FROM units WHERE ref_id = $1")
+            .bind(character.id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(CharacterWrapper { character, unit })
     }
 }

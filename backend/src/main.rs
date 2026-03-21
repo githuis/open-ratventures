@@ -8,14 +8,7 @@ use ratback::data::{Character, User};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let state = ServerState {
-        users: vec![],
-        characters: vec![],
-        quests: vec![],
-    };
-
     // Extensions
-    let shared_state: SharedState = SharedState::new(RwLock::new(state));
     let db: DbConnection = DbConnection::new().await.unwrap();
 
     let app = Router::new() //with_state(ServerState::default())
@@ -23,7 +16,6 @@ async fn main() -> Result<()> {
         .route("/api/register", post(register))
         .route("/api/character", post(create_character))
         .nest("/api", ratback::quest::routes())
-        .layer(Extension(shared_state))
         .layer(Extension(db));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -39,7 +31,6 @@ async fn hello_world() -> &'static str {
 }
 
 async fn register(
-    Extension(state): Extension<SharedState>,
     Extension(db): Extension<DbConnection>,
     username: String,
 ) -> Json<User> {
@@ -50,7 +41,6 @@ async fn register(
 }
 
 async fn create_character(
-    Extension(state): Extension<SharedState>,
     Extension(db): Extension<DbConnection>,
     user_id: String,
 ) -> Json<CharacterWrapper> {

@@ -74,3 +74,9 @@ pub enum CombatAction {
     WeaponAttack,
     UseItem(Item),
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct QuestSummary {
+    pub id: i32,
+    pub member_count: i32,
+}

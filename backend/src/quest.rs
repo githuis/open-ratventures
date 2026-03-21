@@ -6,13 +6,18 @@ use axum::{
 };
 use rand::Rng;
 
-use crate::data::{MAX_ENCOUNTER_LENGTH, SharedState, Unit};
+use crate::data::{CharacterWrapper, MAX_ENCOUNTER_LENGTH, Unit};
 use crate::db::DbConnection;
-use crate::quest_data::{Combat, Dialogue, Encounter, Quest};
+use crate::quest_data::{Combat, Dialogue, Encounter, Quest, QuestSummary};
 
 pub fn routes() -> Router {
     Router::new()
         .route("/quest", post(init_quest))
+        .route("/quest/open", get(open_quests))
+        .route("/quest/join", post(join_quest))
+        .route("/quest/complete", post(complete_quest))
+        .route("/quest/{id}", get(get_quest))
+        .route("/quest/{id}/members", get(quest_members))
         .route("/dialogue/{id}", get(get_dialogue))
 }
 
@@ -23,9 +28,54 @@ async fn init_quest(
     if let Some(existing) = db.get_quest_for_user(user_id).await {
         return Json(existing);
     }
-
-    let quest = db.new_quest(make_encounters()).await.unwrap();
+    let quest = db.new_quest(make_encounters(), user_id).await.unwrap();
     Json(quest)
+}
+
+async fn open_quests(
+    Extension(db): Extension<DbConnection>,
+) -> Result<Json<Vec<QuestSummary>>, StatusCode> {
+    db.list_open_quests().await.map(Json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+#[derive(serde::Deserialize)]
+struct JoinQuestRequest { quest_id: i32, user_id: i32 }
+
+async fn join_quest(
+    Extension(db): Extension<DbConnection>,
+    Json(req): Json<JoinQuestRequest>,
+) -> Result<Json<Quest>, StatusCode> {
+    db.join_quest(req.quest_id, req.user_id).await.map(Json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+#[derive(serde::Deserialize)]
+struct CompleteQuestRequest {
+    quest_id: i32,
+    user_id: i32,
+}
+
+async fn get_quest(
+    Extension(db): Extension<DbConnection>,
+    Path(id): Path<i32>,
+) -> Result<Json<Quest>, StatusCode> {
+    db.get_quest_by_id(id).await.map(Json).ok_or(StatusCode::NOT_FOUND)
+}
+
+async fn quest_members(
+    Extension(db): Extension<DbConnection>,
+    Path(id): Path<i32>,
+) -> Result<Json<Vec<CharacterWrapper>>, StatusCode> {
+    db.get_quest_members(id).await.map(Json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn complete_quest(
+    Extension(db): Extension<DbConnection>,
+    Json(req): Json<CompleteQuestRequest>,
+) -> Result<Json<CharacterWrapper>, StatusCode> {
+    db.complete_quest(req.quest_id, req.user_id)
+        .await
+        .map(Json)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 async fn get_dialogue(Path(id): Path<String>) -> Result<Json<Dialogue>, StatusCode> {

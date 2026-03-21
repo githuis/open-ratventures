@@ -9,6 +9,28 @@ pub const MAX_PARTY_SIZE: usize = 3;
 pub const MAX_COMBAT_ENEMIES: usize = 5;
 pub const MAX_ENCOUNTER_LENGTH: usize = 3;
 
+pub const FANTASY_NAMES: &[&str] = &[
+    "Aelindra", "Borruk", "Caelith", "Draveth", "Eldwyn", "Faelorn", "Gorgrond", "Halvir",
+    "Ithara", "Jorvak", "Kaelthas", "Lyndrel", "Morthak", "Naevris", "Orvyn", "Pyrath",
+    "Quellyn", "Rhovast", "Sylvara", "Thundrek", "Ulvara", "Vexmor", "Wyndrel", "Xalvir",
+    "Ysolde", "Zephrak", "Aevorn", "Bryndis", "Corvath", "Duskmere", "Eryndel", "Fjalrik",
+    "Graeven", "Heldrak", "Ivrath", "Jyndra", "Kolveth", "Liraeth", "Mordwyn", "Nyravel",
+    "Orvindel", "Praeven", "Quelrath", "Ryndara", "Selvorn", "Tavrek", "Ulindra", "Vormath",
+    "Wyrndel", "Xevrath", "Yldren", "Zorvak", "Aldrath", "Belvara", "Cryndel", "Durmorak",
+    "Evelorn", "Fyrveth", "Galdrak", "Hyndrel", "Isvorn", "Jyrrath", "Kaevrik", "Lyndrak",
+    "Molveth", "Naeldris", "Olvarak", "Pryndel", "Quelvor", "Raldris", "Sylvrek", "Thorveth",
+    "Ulvrak", "Vyndara", "Wrolveth", "Xyndrel", "Yvrath", "Zaldorn", "Aevrath", "Brolvek",
+    "Cyndrel", "Dravorn", "Elrath", "Fyldrak", "Golveth", "Hryndra", "Iveldris", "Jolvak",
+    "Keldrath", "Lyrveth", "Morvara", "Nyldrek", "Orveth", "Praldrak", "Quyndra", "Ryldren",
+    "Selvrath", "Tyndrek",
+];
+
+pub fn random_fantasy_name() -> &'static str {
+    use rand::Rng;
+    let idx = rand::thread_rng().gen_range(0..FANTASY_NAMES.len());
+    FANTASY_NAMES[idx]
+}
+
 #[derive(Clone, Debug)]
 pub struct ServerState {
     pub users: Vec<Option<User>>,
@@ -25,15 +47,16 @@ pub struct User {
     pub username: String,
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, sqlx::FromRow, sqlx::Type)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, sqlx::FromRow, sqlx::Type)]
 pub struct Character {
     pub id: i32,
     pub user_id: i32,
+    pub name: String,
     pub experience: u32,
     pub coins: u32,
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CharacterWrapper {
     pub character: Character,
     pub unit: Unit,
@@ -73,6 +96,7 @@ impl Character {
         Character {
             id: id_value,
             user_id: *user_id,
+            name: String::new(),
             experience: 0,
             coins: 0,
         }
