@@ -1,6 +1,6 @@
-use std::{collections::HashMap, error::Error};
+use std::error::Error;
 
-use ratback::{data::{Character, CharacterWrapper, User}, quest_data::{Dialogue, Quest}};
+use ratback::{data::{CharacterWrapper, User}, quest_data::{Dialogue, Quest, QuestSummary}};
 use reqwest::blocking::Client;
 
 const HOST: &str = "http://localhost:3000/api/";
@@ -42,10 +42,37 @@ impl Rattp {
         Ok(character)
     }
     
+    pub fn post_complete_quest(&self, quest_id: i32, user_id: i32) -> Result<CharacterWrapper, Box<dyn Error>> {
+        let body = serde_json::json!({ "quest_id": quest_id, "user_id": user_id });
+        let response = self.http.post(Self::destination("quest/complete")).json(&body).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
     pub fn get_dialogue(&self, id: &str) -> Result<Dialogue, Box<dyn Error>> {
         let response = self.http.get(Self::destination(&format!("dialogue/{id}"))).send()?.text()?;
         let dialogue: Dialogue = serde_json::from_str(&response)?;
         Ok(dialogue)
+    }
+
+    pub fn get_quest(&self, quest_id: i32) -> Result<Quest, Box<dyn Error>> {
+        let response = self.http.get(Self::destination(&format!("quest/{quest_id}"))).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn get_quest_members(&self, quest_id: i32) -> Result<Vec<CharacterWrapper>, Box<dyn Error>> {
+        let response = self.http.get(Self::destination(&format!("quest/{quest_id}/members"))).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn get_open_quests(&self) -> Result<Vec<QuestSummary>, Box<dyn Error>> {
+        let response = self.http.get(Self::destination("quest/open")).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn post_join_quest(&self, quest_id: i32, user_id: i32) -> Result<Quest, Box<dyn Error>> {
+        let body = serde_json::json!({ "quest_id": quest_id, "user_id": user_id });
+        let response = self.http.post(Self::destination("quest/join")).json(&body).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
     }
 
     pub(crate) fn post_new_quest(&self, user_id: i32) -> Result<Quest, Box<dyn Error>> {
