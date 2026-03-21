@@ -317,6 +317,24 @@ impl DbConnection {
         Ok(CharacterWrapper { character, unit })
     }
 
+    pub async fn update_unit_for_user(&self, user_id: i32, unit: &Unit) -> Result<()> {
+        let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?;
+        sqlx::query(
+            "UPDATE units SET health = $1, energy = $2, max_health = $3, max_energy = $4 WHERE ref_id = $5",
+        )
+        .bind(unit.health)
+        .bind(unit.energy)
+        .bind(unit.max_health)
+        .bind(unit.max_energy)
+        .bind(char_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn get_character_by_user_id(&self, user_id: i32) -> Result<CharacterWrapper> {
         let character =
             sqlx::query_as::<_, Character>("SELECT * FROM characters WHERE user_id = $1")

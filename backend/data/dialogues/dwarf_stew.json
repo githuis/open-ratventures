@@ -11,13 +11,15 @@
     },
     "eat": {
       "text": "The dwarf grins through his beard and ladles out a steaming bowl. It smells of herbs and something you can't quite place. Warm, hearty — you feel better for it.",
-      "choices": [],
-      "outcome": { "Reward": { "coins": -3, "experience": 0, "heal": 10 } }
+      "choices": [
+        { "text": "Move on.", "next": null, "outcome": { "Reward": { "coins": -3, "experience": 0, "heal": 10 } } }
+      ]
     },
     "decline": {
       "text": "The dwarf shrugs and turns back to his pot. 'Suit yerself.' The smell follows you down the corridor.",
-      "choices": [],
-      "outcome": null
+      "choices": [
+        { "text": "Move on.", "next": null, "outcome": null }
+      ]
     }
   }
 }

@@ -8,7 +8,7 @@ use ratatui::{
     style::{Color, Modifier, Style, Stylize},
     symbols::border,
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 use ratback::{
     data::{CharacterWrapper, User},
@@ -28,6 +28,7 @@ pub struct App {
     pub party_members: Vec<CharacterWrapper>,
     pub text_input: Option<String>,
     pub client: Rattp,
+    pub last_combat_damage: Option<i32>,
 }
 
 #[derive(Debug, Default)]
@@ -322,6 +323,7 @@ impl App {
                 }
             }
             Some(Encounter::CombatEncounter(_)) => {
+                self.last_combat_damage = None;
                 self.state = AppState::Combat;
             }
             _ => {
@@ -426,26 +428,44 @@ impl App {
     }
 
     fn attack_first_enemy(&mut self, damage: i32) {
-        let encounter_cleared = {
+        // Phase 1: player attacks, count surviving monsters
+        let (encounter_cleared, monsters_alive) = {
             let quest = match self.active_quest.as_mut() {
                 Some(q) => q,
                 None => return,
             };
             let idx = quest.current_encounter as usize;
-            let all_dead = match quest.encounters.get_mut(idx) {
-                Some(Encounter::CombatEncounter(c)) => {
-                    if let Some(target) = c.monsters.iter_mut().find(|m| m.health > 0) {
-                        target.health = (target.health - damage).max(0);
-                    }
-                    c.monsters.iter().all(|m| m.health <= 0)
-                }
+            let combat = match quest.encounters.get_mut(idx) {
+                Some(Encounter::CombatEncounter(c)) => c,
                 _ => return,
             };
-            if all_dead {
+            if let Some(target) = combat.monsters.iter_mut().find(|m| m.health > 0) {
+                target.health = (target.health - damage).max(0);
+            }
+            let alive = combat.monsters.iter().filter(|m| m.health > 0).count();
+            combat.turn += 1;
+            if alive == 0 {
                 quest.current_encounter += 1;
             }
-            all_dead
+            (alive == 0, alive)
         };
+
+        // Phase 2: monster retaliation
+        if !encounter_cleared && monsters_alive > 0 {
+            let monster_damage = monsters_alive as i32 * 3;
+            self.last_combat_damage = Some(monster_damage);
+            if let Some(c) = self.active_character.as_mut() {
+                c.unit.health = (c.unit.health - monster_damage).max(0);
+            }
+            if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
+                let uid = user.id;
+                let unit = c.unit;
+                let _ = self.client.update_character_unit(uid, &unit);
+            }
+        } else if encounter_cleared {
+            self.last_combat_damage = None;
+        }
+
         // push updated encounter state to backend
         if let Some(q) = &self.active_quest {
             let _ = self.client.put_encounters(q.id, q.current_encounter, None, &q.encounters);
@@ -503,19 +523,71 @@ impl App {
             .fg(Color::Rgb(247, 255, 174))
             .add_modifier(Modifier::BOLD);
 
-        let lhs_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(1)
-            .constraints(vec![
-                Constraint::Min(3),
-                Constraint::Min(7),
-                Constraint::Min(20),
-            ])
-            .split(area);
+        let block = Block::default()
+            .title(Line::from(" Character ".bold()))
+            .borders(Borders::ALL)
+            .border_set(border::THICK);
 
-        self.render_user(lhs_layout[0], buf, text_style);
-        self.render_stats(lhs_layout[1], buf, text_style);
-        self.render_quest(lhs_layout[2], buf, text_style);
+        let mut lines: Vec<Line> = Vec::new();
+
+        if let Some(user) = &self.active_user {
+            lines.push(Line::from(vec![
+                "User: ".into(),
+                Span::styled(&user.username, text_style),
+            ]));
+        }
+
+        if let Some(c) = &self.active_character {
+            if !lines.is_empty() {
+                lines.push(Line::from(""));
+            }
+            lines.push(Line::from(vec![
+                "Name:  ".into(),
+                Span::styled(&c.character.name, text_style),
+            ]));
+            lines.push(Line::from(vec![
+                "HP:    ".into(),
+                Span::styled(c.unit.health.to_string(), text_style),
+                "/".into(),
+                Span::styled(c.unit.max_health.to_string(), text_style),
+            ]));
+            lines.push(Line::from(vec![
+                "EP:    ".into(),
+                Span::styled(c.unit.energy.to_string(), text_style),
+                "/".into(),
+                Span::styled(c.unit.max_energy.to_string(), text_style),
+            ]));
+            lines.push(Line::from(vec![
+                "Gold:  ".into(),
+                Span::styled(c.character.coins.to_string(), text_style),
+            ]));
+            lines.push(Line::from(vec![
+                "Exp:   ".into(),
+                Span::styled(c.character.experience.to_string(), text_style),
+            ]));
+        }
+
+        if let Some(quest) = &self.active_quest {
+            if !lines.is_empty() {
+                lines.push(Line::from(""));
+            }
+            let enc_type = match quest.encounters.get(quest.current_encounter as usize) {
+                Some(Encounter::CombatEncounter(_)) => "Combat",
+                Some(Encounter::NpcEncounter(_)) => "NPC",
+                _ => "—",
+            };
+            lines.push(Line::from(vec![
+                "Quest: #".into(),
+                Span::styled(quest.current_encounter.to_string(), text_style),
+                " | ".into(),
+                enc_type.into(),
+            ]));
+        }
+
+        Paragraph::new(lines)
+            .block(block)
+            .bg(Color::Rgb(116, 86, 116))
+            .render(area, buf);
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -538,77 +610,9 @@ impl App {
             .borders(Borders::ALL)
             .border_set(border::THICK);
 
-        let title = Text::from(vec![Line::from(vec!["Welcome".into()])]);
-
-        Paragraph::new(title)
-            .centered()
-            .block(block)
-            .render(area, buf);
+        block.render(area, buf);
     }
 
-    fn render_stats(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
-        let stats_block = Block::default()
-            .title(Line::from(" Stats ".bold()))
-            .borders(Borders::ALL)
-            .border_set(border::THICK);
-
-        let wrapper = match &self.active_character {
-            Some(c) => c,
-            None => return,
-        };
-
-        let mut health_text = vec![];
-
-        health_text.push(Line::from(vec![
-            "Health: ".into(),
-            Span::styled(wrapper.unit.health.to_string(), text_style),
-            "/".into(),
-            Span::styled(wrapper.unit.max_health.to_string(), text_style),
-        ]));
-
-        health_text.push(Line::from(vec![
-            "Energy: ".into(),
-            Span::styled(wrapper.unit.energy.to_string(), text_style),
-            "/".into(),
-            Span::styled(wrapper.unit.max_energy.to_string(), text_style),
-        ]));
-
-        health_text.push(Line::from(vec![
-            "Coins: ".into(),
-            Span::styled(wrapper.character.coins.to_string(), text_style),
-        ]));
-
-        health_text.push(Line::from(vec![
-            "Experience: ".into(),
-            Span::styled(wrapper.character.experience.to_string(), text_style),
-        ]));
-
-        Paragraph::new(health_text)
-            .block(stats_block)
-            .bg(Color::Rgb(116, 86, 116))
-            .render(area, buf);
-    }
-
-    fn render_user(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
-        let user_block = Block::default()
-            .title(Line::from(" User: ".bold()))
-            .borders(Borders::ALL)
-            .border_set(border::THICK);
-
-        let current_user = match &self.active_user {
-            Some(x) => Line::from(vec![
-                "Username: ".into(),
-                Span::styled(&x.username, text_style),
-            ]),
-            None => Line::from(vec!["No active user".into()]),
-        };
-        let user_text = Text::from(vec![current_user]);
-
-        Paragraph::new(user_text)
-            .block(user_block)
-            .bg(Color::Rgb(116, 86, 116))
-            .render(area, buf);
-    }
 
     fn render_input(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let block = Block::default()
@@ -656,37 +660,11 @@ impl App {
 
         Paragraph::new(lines)
             .block(block)
+            .wrap(Wrap { trim: false })
             .bg(Color::Rgb(60, 50, 80))
             .render(area, buf);
     }
 
-    fn render_quest(&self, area: Rect, buf: &mut Buffer, _text_style: Style) {
-        let block = Block::default()
-            .title(Line::from(" Quest ".bold()))
-            .borders(Borders::ALL)
-            .border_set(border::THICK);
-
-        let quest = match &self.active_quest {
-            Some(q) => q,
-            None => return,
-        };
-
-        let enc_type = match quest.encounters.get(quest.current_encounter as usize) {
-            Some(Encounter::CombatEncounter(_)) => "Combat",
-            Some(Encounter::NpcEncounter(_)) => "NPC",
-            _ => "—",
-        };
-
-        let lines = vec![Line::from(format!(
-            " #{} | {}",
-            quest.current_encounter, enc_type
-        ))];
-
-        Paragraph::new(lines)
-            .block(block)
-            .bg(Color::Rgb(116, 86, 116))
-            .render(area, buf);
-    }
 
     fn render_quest_lobby(&self, area: Rect, buf: &mut Buffer, text_style: Style, quests: &[QuestSummary]) {
         let block = Block::default()
@@ -742,7 +720,15 @@ impl App {
             .borders(Borders::ALL)
             .border_set(border::THICK);
 
-        let mut lines = vec![Line::from(""), Line::from(" Enemies:".bold()), Line::from("")];
+        let mut lines = vec![
+            Line::from(vec![
+                " Turn ".into(),
+                Span::styled(combat.turn.to_string(), text_style),
+            ]),
+            Line::from(""),
+            Line::from(" Enemies:".bold()),
+            Line::from(""),
+        ];
 
         for (i, m) in combat.monsters.iter().enumerate() {
             let label = if m.health <= 0 {
@@ -759,6 +745,13 @@ impl App {
         }
 
         lines.push(Line::from(""));
+        if let Some(dmg) = self.last_combat_damage {
+            lines.push(Line::from(vec![
+                " Monsters dealt ".into(),
+                Span::styled(dmg.to_string(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                " damage!".into(),
+            ]));
+        }
         lines.push(Line::from(vec![
             " [F] Attack — ".into(),
             Span::styled("5 dmg to first living enemy", text_style),

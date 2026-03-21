@@ -86,6 +86,11 @@ impl Rattp {
         Ok(serde_json::from_str(&response)?)
     }
 
+    pub fn update_character_unit(&self, user_id: i32, unit: &ratback::data::Unit) -> Result<(), Box<dyn Error>> {
+        self.http.put(Self::destination(&format!("character/{user_id}/unit"))).json(unit).send()?;
+        Ok(())
+    }
+
     pub(crate) fn post_new_quest(&self, user_id: i32) -> Result<Quest, Box<dyn Error>> {
         let response = self.http.post(Self::destination("quest")).json(&user_id).send()?.text()?;
 
