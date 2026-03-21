@@ -7,7 +7,7 @@ use crate::quest_data::Quest;
 
 pub const MAX_PARTY_SIZE: usize = 3;
 pub const MAX_COMBAT_ENEMIES: usize = 5;
-pub const MAX_ENCOUNTER_LENGTH: usize = 3;
+pub const MAX_ENCOUNTER_LENGTH: usize = 10;
 
 pub const FANTASY_NAMES: &[&str] = &[
     "Aelindra", "Borruk", "Caelith", "Draveth", "Eldwyn", "Faelorn", "Gorgrond", "Halvir",

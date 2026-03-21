@@ -50,7 +50,8 @@ pub struct DialogueChoice {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DialogueOutcome {
-    Reward { coins: u32, experience: u32 },
+    Reward { coins: i32, experience: i32, #[serde(default)] heal: i32 },
+    Damage { amount: i32 },
     Combat(Combat),
     Escape,
     NextEncounter,
@@ -81,4 +82,23 @@ pub enum CombatAction {
 pub struct QuestSummary {
     pub id: i32,
     pub member_count: i32,
+}
+
+#[derive(Deserialize)]
+pub struct JoinQuestRequest {
+    pub quest_id: i32,
+    pub user_id: i32,
+}
+
+#[derive(Deserialize)]
+pub struct CompleteQuestRequest {
+    pub quest_id: i32,
+    pub user_id: i32,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateEncountersRequest {
+    pub current_encounter: i32,
+    pub current_node_id: Option<String>,
+    pub encounters: Vec<Encounter>,
 }

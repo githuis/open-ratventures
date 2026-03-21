@@ -1,0 +1,23 @@
+{
+  "id": "dwarf_stew",
+  "start": "greeting",
+  "nodes": {
+    "greeting": {
+      "text": "A heavily bearded dwarf crouches over a bubbling pot, stirring slowly. He squints up at you. 'Aye, mysterious stew this is. Ancient recipe. Cost me a pretty coin to make.' He taps the ladle on the rim. 'Few coins for ingredients and there's a bowl in it for ye.'",
+      "choices": [
+        { "text": "Hand over some coins for a bowl.", "next": "eat" },
+        { "text": "No thanks, we'll move on.", "next": "decline" }
+      ]
+    },
+    "eat": {
+      "text": "The dwarf grins through his beard and ladles out a steaming bowl. It smells of herbs and something you can't quite place. Warm, hearty — you feel better for it.",
+      "choices": [],
+      "outcome": { "Reward": { "coins": -3, "experience": 0, "heal": 10 } }
+    },
+    "decline": {
+      "text": "The dwarf shrugs and turns back to his pot. 'Suit yerself.' The smell follows you down the corridor.",
+      "choices": [],
+      "outcome": null
+    }
+  }
+}

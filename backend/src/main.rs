@@ -1,21 +1,46 @@
 use axum::{ Extension, Router, response::Json, routing::{get, post}, };
 use color_eyre::Result;
-use ratback::{ data::{CharacterWrapper, ServerState, SharedState, Unit}, db::DbConnection, };
-use sqlx::{Connection, SqliteConnection, sqlite::SqlitePoolOptions};
-use std::{ net::SocketAddr, sync::{Arc, RwLock}, };
+use ratback::db::DbConnection;
+use std::{ collections::HashMap, net::SocketAddr, sync::Arc };
 use tokio::net::TcpListener;
-use ratback::data::{Character, User};
+use ratback::data::User;
+use ratback::quest_data::Dialogue;
+
+fn load_dialogues() -> Arc<HashMap<String, Dialogue>> {
+    let candidates = ["backend/data/dialogues", "data/dialogues"];
+    let dir = candidates.iter().map(std::path::Path::new).find(|p| p.exists());
+
+    let mut map = HashMap::new();
+    if let Some(dir) = dir {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "json").unwrap_or(false) {
+                    let id = path.file_stem().unwrap().to_string_lossy().to_string();
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(dialogue) = serde_json::from_str::<Dialogue>(&content) {
+                            map.insert(id, dialogue);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    println!("Loaded {} dialogues: {:?}", map.len(), map.keys().collect::<Vec<_>>());
+    Arc::new(map)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Extensions
     let db: DbConnection = DbConnection::new().await.unwrap();
+    let dialogues = load_dialogues();
 
-    let app = Router::new() //with_state(ServerState::default())
+    let app = Router::new()
         .route("/api/hello-world", get(hello_world))
         .route("/api/register", post(register))
-        .route("/api/character", post(create_character))
         .nest("/api", ratback::quest::routes())
+        .nest("/api", ratback::users::routes())
+        .layer(Extension(dialogues))
         .layer(Extension(db));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -40,11 +65,3 @@ async fn register(
     result
 }
 
-async fn create_character(
-    Extension(db): Extension<DbConnection>,
-    user_id: String,
-) -> Json<CharacterWrapper> {
-    
-    
-    Json(db.get_character(user_id).await.unwrap())
-}

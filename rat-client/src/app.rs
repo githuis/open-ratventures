@@ -109,6 +109,7 @@ impl App {
                 KeyCode::Char('2') => self.join_quest_from_lobby(1),
                 KeyCode::Char('3') => self.join_quest_from_lobby(2),
                 KeyCode::Char('4') => self.join_quest_from_lobby(3),
+                KeyCode::Char('5') => self.join_quest_from_lobby(4),
                 KeyCode::Char('n') => self.create_new_quest(),
                 KeyCode::Char('r') | KeyCode::Char('a') => self.start_quest(),
                 KeyCode::Char('q') => self.exit(),
@@ -121,6 +122,7 @@ impl App {
                 KeyCode::Char('2') => self.pick_dialogue_choice(1),
                 KeyCode::Char('3') => self.pick_dialogue_choice(2),
                 KeyCode::Char('4') => self.pick_dialogue_choice(3),
+                KeyCode::Char('5') => self.pick_dialogue_choice(4),
                 KeyCode::Char('q') => self.exit(),
                 _ => {}
             },
@@ -380,10 +382,21 @@ impl App {
     fn apply_dialogue_outcome(&mut self, outcome: DialogueOutcome) {
         self.state = AppState::Main;
         match outcome {
-            DialogueOutcome::Reward { coins, experience } => {
+            DialogueOutcome::Reward { coins, experience, heal } => {
                 if let Some(c) = self.active_character.as_mut() {
-                    c.character.coins += coins;
-                    c.character.experience += experience;
+                    c.character.coins = (c.character.coins as i32 + coins).max(0) as u32;
+                    c.character.experience = (c.character.experience as i32 + experience).max(0) as u32;
+                    if heal != 0 {
+                        c.unit.health = (c.unit.health + heal).clamp(0, c.unit.max_health);
+                    }
+                }
+                if let Some(q) = self.active_quest.as_mut() {
+                    q.current_encounter += 1;
+                }
+            }
+            DialogueOutcome::Damage { amount } => {
+                if let Some(c) = self.active_character.as_mut() {
+                    c.unit.health = (c.unit.health - amount).max(0);
                 }
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_encounter += 1;
