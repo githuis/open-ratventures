@@ -235,6 +235,7 @@ impl App {
         if let Ok(updated) = self.client.get_quest(quest_id) {
             if let Some(q) = self.active_quest.as_mut() {
                 q.current_encounter = updated.current_encounter;
+                q.encounters = updated.encounters;
             }
             self.check_current_encounter();
         }
@@ -367,6 +368,11 @@ impl App {
             }
             all_dead
         };
+        // push updated encounter state to backend
+        if let Some(q) = &self.active_quest {
+            let _ = self.client.put_encounters(q.id, &q.encounters);
+        }
+
         if encounter_cleared {
             self.check_current_encounter();
         }

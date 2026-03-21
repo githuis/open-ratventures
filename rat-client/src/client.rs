@@ -54,6 +54,11 @@ impl Rattp {
         Ok(dialogue)
     }
 
+    pub fn put_encounters(&self, quest_id: i32, encounters: &Vec<ratback::quest_data::Encounter>) -> Result<(), Box<dyn Error>> {
+        self.http.put(Self::destination(&format!("quest/{quest_id}/encounters"))).json(encounters).send()?;
+        Ok(())
+    }
+
     pub fn get_quest(&self, quest_id: i32) -> Result<Quest, Box<dyn Error>> {
         let response = self.http.get(Self::destination(&format!("quest/{quest_id}"))).send()?.text()?;
         Ok(serde_json::from_str(&response)?)
