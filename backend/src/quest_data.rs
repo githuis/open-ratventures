@@ -51,7 +51,7 @@ pub struct DialogueChoice {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DialogueOutcome {
     Reward { coins: u32, experience: u32 },
-    Combat,
+    Combat(Combat),
     Escape,
     NextEncounter,
 }

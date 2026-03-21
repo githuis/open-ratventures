@@ -13,26 +13,26 @@
     "threaten": {
       "text": "The rat bares his teeth. 'You found it.' He lunges!",
       "choices": [
-        { "text": "Brace for combat!", "next": null, "outcome": { "Combat": null } }
+        { "text": "Brace for combat!", "next": null, "outcome": { "Combat": { "monsters": [{ "id": 0, "ref_id": 0, "health": 50, "energy": 30, "max_health": 50, "max_energy": 30 }], "turn": 0 } } }
       ]
     },
     "neutral": {
       "text": "'Sure you are.' He tosses you a coin. 'Buy yourself something better than that excuse.'",
       "choices": [
-        { "text": "Take the coin and leave.", "next": null, "outcome": { "Reward": { "coins": 5, "experience": 10 } } }
+        { "text": "Take the coin and leave.", "next": null, "outcome": { "Reward": { "coins": 1, "experience": 0 } } }
       ]
     },
     "trade": {
       "text": "He scratches his chin. 'Information costs. But I'll let you have this one free.' He slips you a pouch.",
       "choices": [
-        { "text": "Take the pouch.", "next": null, "outcome": { "Reward": { "coins": 15, "experience": 25 } } },
+        { "text": "Take the pouch.", "next": null, "outcome": { "Reward": { "coins": 3, "experience": 2 } } },
         { "text": "Refuse. Something feels wrong.", "next": "refuse", "outcome": null }
       ]
     },
     "refuse": {
       "text": "'Smart.' He almost sounds impressed. 'Get out of here before I change my mind.'",
       "choices": [
-        { "text": "Leave.", "next": null, "outcome": { "Reward": { "coins": 0, "experience": 15 } } }
+        { "text": "Leave.", "next": null, "outcome": { "Reward": { "coins": 0, "experience": 5 } } }
       ]
     }
   }

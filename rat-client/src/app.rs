@@ -248,11 +248,26 @@ impl App {
                 let enc_changed = self.active_quest.as_ref()
                     .map(|q| q.current_encounter != updated.current_encounter)
                     .unwrap_or(false);
+
+                // Detect if the encounter type changed at the same index (e.g. NPC → Combat)
+                let enc_type_changed = {
+                    let idx = updated.current_encounter as usize;
+                    let old_is_npc = self.active_quest.as_ref()
+                        .and_then(|q| q.encounters.get(idx))
+                        .map(|e| matches!(e, Encounter::NpcEncounter(_)))
+                        .unwrap_or(false);
+                    let new_is_combat = updated.encounters.get(idx)
+                        .map(|e| matches!(e, Encounter::CombatEncounter(_)))
+                        .unwrap_or(false);
+                    old_is_npc && new_is_combat
+                };
+
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_encounter = updated.current_encounter;
                     q.encounters = updated.encounters;
+                    q.current_node_id = updated.current_node_id.clone();
                 }
-                if enc_changed {
+                if enc_changed || enc_type_changed {
                     self.check_current_encounter();
                 } else if let Some(node_id) = updated.current_node_id {
                     if let AppState::Dialogue { current_node, .. } = &mut self.state {
@@ -379,8 +394,17 @@ impl App {
                     q.current_encounter += 1;
                 }
             }
-            DialogueOutcome::Combat => {
-                // TODO: spawn combat encounter
+            DialogueOutcome::Combat(combat) => {
+                let idx = self.active_quest.as_ref().map(|q| q.current_encounter as usize).unwrap_or(0);
+                if let Some(q) = self.active_quest.as_mut() {
+                    if let Some(enc) = q.encounters.get_mut(idx) {
+                        *enc = Encounter::CombatEncounter(combat);
+                    }
+                    q.current_node_id = None;
+                }
+                self.state = AppState::Combat; // set before sync so node_id is sent as null
+                self.sync_quest_state();
+                return;
             }
             DialogueOutcome::Escape => {}
         }
@@ -434,7 +458,7 @@ impl Widget for &App {
 
         let right_layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(80), Constraint::Percentage(20)])
+            .constraints([Constraint::Min(4), Constraint::Min(6)])
             .split(parent_layout[1]);
 
         self.render_main(area, buf, text_style);
