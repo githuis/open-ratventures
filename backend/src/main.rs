@@ -1,21 +1,9 @@
-use axum::{
-    Extension, Router,
-    response::Json,
-    routing::{get, post},
-};
+use axum::{ Extension, Router, response::Json, routing::{get, post}, };
 use color_eyre::Result;
-use ratback::{
-    data::{CharacterWrapper, ServerState, SharedState, Unit},
-    db::DbConnection,
-};
+use ratback::{ data::{CharacterWrapper, ServerState, SharedState, Unit}, db::DbConnection, };
 use sqlx::{Connection, SqliteConnection, sqlite::SqlitePoolOptions};
-
-use std::{
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-};
+use std::{ net::SocketAddr, sync::{Arc, RwLock}, };
 use tokio::net::TcpListener;
-
 use ratback::data::{Character, User};
 
 #[tokio::main]

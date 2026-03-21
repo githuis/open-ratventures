@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::data::{Character, Item, MAX_COMBAT_ENEMIES, MAX_ENCOUNTER_LENGTH, MAX_PARTY_SIZE, Unit};
@@ -13,7 +14,7 @@ pub enum Encounter {
     #[default]
     EmptyEncounter,
     CombatEncounter(Combat),
-    NpcEncounter(EncounterReward),
+    NpcEncounter(String), // dialogue_id
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -23,6 +24,36 @@ pub enum EncounterReward {
     CoinReward(u32),
     ExperienceReward(u32),
     CoinAndExperienceReward(u32, u32),
+}
+
+// --- Dialogue types ---
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Dialogue {
+    pub id: String,
+    pub start: String,
+    pub nodes: HashMap<String, DialogueNode>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DialogueNode {
+    pub text: String,
+    pub choices: Vec<DialogueChoice>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DialogueChoice {
+    pub text: String,
+    pub next: Option<String>,
+    pub outcome: Option<DialogueOutcome>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum DialogueOutcome {
+    Reward { coins: u32, experience: u32 },
+    Combat,
+    Escape,
+    NextEncounter,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, sqlx::FromRow, sqlx::Type)]

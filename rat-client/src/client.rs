@@ -1,6 +1,6 @@
 use std::{collections::HashMap, error::Error};
 
-use ratback::{data::{Character, CharacterWrapper, User}, quest_data::Quest};
+use ratback::{data::{Character, CharacterWrapper, User}, quest_data::{Dialogue, Quest}};
 use reqwest::blocking::Client;
 
 const HOST: &str = "http://localhost:3000/api/";
@@ -42,6 +42,12 @@ impl Rattp {
         Ok(character)
     }
     
+    pub fn get_dialogue(&self, id: &str) -> Result<Dialogue, Box<dyn Error>> {
+        let response = self.http.get(Self::destination(&format!("dialogue/{id}"))).send()?.text()?;
+        let dialogue: Dialogue = serde_json::from_str(&response)?;
+        Ok(dialogue)
+    }
+
     pub(crate) fn post_new_quest(&self, user_id: i32) -> Result<Quest, Box<dyn Error>> {
         let response = self.http.post(Self::destination("quest")).json(&user_id).send()?.text()?;
 

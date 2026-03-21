@@ -11,7 +11,7 @@ use ratatui::{
 };
 use ratback::{
     data::{CharacterWrapper, User},
-    quest_data::{Encounter, Quest},
+    quest_data::{Dialogue, DialogueOutcome, Encounter, Quest},
 };
 
 use crate::client::Rattp;
@@ -36,6 +36,7 @@ pub enum AppState {
     FinishInput(Reason),
     Party,
     Combat,
+    Dialogue { dialogue: Dialogue, current_node: String },
 }
 
 #[derive(Debug, Default)]
@@ -68,7 +69,7 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<()> {
-        match self.state {
+        match &self.state {
             AppState::TextInput(_) => match key_event.code {
                 KeyCode::Enter => self.finish_register_user(),
                 KeyCode::Char(value) => match self.text_input.as_mut() {
@@ -84,6 +85,14 @@ impl App {
                     _ => {}
                 },
                 KeyCode::Esc => self.state = AppState::Main,
+                _ => {}
+            },
+
+            AppState::Dialogue { .. } => match key_event.code {
+                KeyCode::Char('1') => self.pick_dialogue_choice(0),
+                KeyCode::Char('2') => self.pick_dialogue_choice(1),
+                KeyCode::Char('3') => self.pick_dialogue_choice(2),
+                KeyCode::Char('4') => self.pick_dialogue_choice(3),
                 _ => {}
             },
 
@@ -160,27 +169,107 @@ impl App {
             self.active_quest = match self.client.post_new_quest(user.id) {
                 Ok(new_q) => Some(new_q),
                 _ => None,
+            };
+            self.check_current_encounter();
+        }
+    }
+
+    fn check_current_encounter(&mut self) {
+        let dialogue_id = match &self.active_quest {
+            Some(q) => match q.encounters.get(q.current_encounter as usize) {
+                Some(Encounter::NpcEncounter(id)) => Some(id.clone()),
+                _ => None,
+            },
+            None => None,
+        };
+        if let Some(id) = dialogue_id {
+            if let Ok(dialogue) = self.client.get_dialogue(&id) {
+                let start = dialogue.start.clone();
+                self.state = AppState::Dialogue { dialogue, current_node: start };
             }
         }
     }
 
-    fn attack_first_enemy(&mut self, damage: i32) {
-        let quest = match self.active_quest.as_mut() {
-            Some(q) => q,
-            None => return,
-        };
-        let idx = quest.current_encounter as usize;
-        let all_dead = match quest.encounters.get_mut(idx) {
-            Some(Encounter::CombatEncounter(c)) => {
-                if let Some(target) = c.monsters.iter_mut().find(|m| m.health > 0) {
-                    target.health = (target.health - damage).max(0);
+    fn pick_dialogue_choice(&mut self, index: usize) {
+        let (next, outcome) = match &self.state {
+            AppState::Dialogue { dialogue, current_node } => {
+                match dialogue.nodes.get(current_node) {
+                    Some(node) => match node.choices.get(index) {
+                        Some(choice) => (choice.next.clone(), choice.outcome.clone()),
+                        None => return,
+                    },
+                    None => return,
                 }
-                c.monsters.iter().all(|m| m.health <= 0)
             }
             _ => return,
         };
-        if all_dead {
-            quest.current_encounter += 1;
+
+        match (next, outcome) {
+            (Some(node_id), _) => {
+                if let AppState::Dialogue { current_node, .. } = &mut self.state {
+                    *current_node = node_id;
+                }
+            }
+            (None, Some(outcome)) => {
+                self.apply_dialogue_outcome(outcome);
+            }
+            (None, None) => {
+                self.state = AppState::Main;
+                if let Some(q) = self.active_quest.as_mut() {
+                    q.current_encounter += 1;
+                }
+            }
+        }
+    }
+
+    fn apply_dialogue_outcome(&mut self, outcome: DialogueOutcome) {
+        self.state = AppState::Main;
+        match outcome {
+            DialogueOutcome::Reward { coins, experience } => {
+                if let Some(c) = self.active_character.as_mut() {
+                    c.character.coins += coins;
+                    c.character.experience += experience;
+                }
+                if let Some(q) = self.active_quest.as_mut() {
+                    q.current_encounter += 1;
+                }
+            }
+            DialogueOutcome::NextEncounter => {
+                if let Some(q) = self.active_quest.as_mut() {
+                    q.current_encounter += 1;
+                }
+            }
+            DialogueOutcome::Combat => {
+                // TODO: spawn combat encounter
+            }
+            DialogueOutcome::Escape => {}
+        }
+        self.check_current_encounter();
+    }
+
+    fn attack_first_enemy(&mut self, damage: i32) {
+        let encounter_cleared = {
+            let quest = match self.active_quest.as_mut() {
+                Some(q) => q,
+                None => return,
+            };
+            let idx = quest.current_encounter as usize;
+            let all_dead = match quest.encounters.get_mut(idx) {
+                Some(Encounter::CombatEncounter(c)) => {
+                    if let Some(target) = c.monsters.iter_mut().find(|m| m.health > 0) {
+                        target.health = (target.health - damage).max(0);
+                    }
+                    c.monsters.iter().all(|m| m.health <= 0)
+                }
+                _ => return,
+            };
+            if all_dead {
+                quest.current_encounter += 1;
+            }
+            all_dead
+        };
+        if encounter_cleared {
+            self.check_current_encounter();
         }
     }
 }
@@ -197,10 +286,17 @@ impl Widget for &App {
             .constraints(vec![Constraint::Percentage(30), Constraint::Percentage(70)])
             .split(area);
 
-        match self.state {
+        match &self.state {
             AppState::TextInput(_) => {
                 let rect = Rect::new(40, 15, 100, 3);
+                self.render_main(area, buf, text_style);
+                self.render_left_panel(parentLayout[0], buf);
                 self.render_input(rect, buf, text_style);
+            }
+            AppState::Dialogue { dialogue, current_node } => {
+                self.render_main(area, buf, text_style);
+                self.render_left_panel(parentLayout[0], buf);
+                self.render_dialogue(parentLayout[1], buf, text_style, dialogue, current_node);
             }
             _ => {
                 self.render_main(area, buf, text_style);
@@ -340,6 +436,36 @@ impl App {
         Paragraph::new(text)
             .block(block)
             .bg(Color::Rgb(116, 86, 116))
+            .render(area, buf);
+    }
+
+    fn render_dialogue(&self, area: Rect, buf: &mut Buffer, text_style: Style, dialogue: &Dialogue, current_node: &str) {
+        let node = match dialogue.nodes.get(current_node) {
+            Some(n) => n,
+            None => return,
+        };
+
+        let block = Block::default()
+            .title(Line::from(" Conversation ".bold()))
+            .borders(Borders::ALL)
+            .border_set(border::THICK);
+
+        let mut lines = vec![
+            Line::from(""),
+            Line::from(Span::styled(node.text.clone(), text_style)),
+            Line::from(""),
+        ];
+
+        for (i, choice) in node.choices.iter().enumerate() {
+            lines.push(Line::from(vec![
+                Span::styled(format!(" [{}] ", i + 1), text_style),
+                choice.text.clone().into(),
+            ]));
+        }
+
+        Paragraph::new(lines)
+            .block(block)
+            .bg(Color::Rgb(60, 50, 80))
             .render(area, buf);
     }
 
