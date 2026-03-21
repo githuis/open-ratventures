@@ -11,7 +11,7 @@ use ratatui::{
 };
 use ratback::{
     data::{CharacterWrapper, User},
-    quest_data::Quest,
+    quest_data::{Encounter, Quest},
 };
 
 use crate::client::Rattp;
@@ -92,6 +92,7 @@ impl App {
                 KeyCode::Char('r') => self.start_register_user(),
                 KeyCode::Char('c') => self.register_character(),
                 KeyCode::Char('a') => self.start_quest(),
+                KeyCode::Char('f') => self.attack_first_enemy(5),
                 _ => {}
             },
         }
@@ -160,6 +161,26 @@ impl App {
                 Ok(new_q) => Some(new_q),
                 _ => None,
             }
+        }
+    }
+
+    fn attack_first_enemy(&mut self, damage: i32) {
+        let quest = match self.active_quest.as_mut() {
+            Some(q) => q,
+            None => return,
+        };
+        let idx = quest.current_encounter as usize;
+        let all_dead = match quest.encounters.get_mut(idx) {
+            Some(Encounter::CombatEncounter(c)) => {
+                if let Some(target) = c.monsters.iter_mut().find(|m| m.health > 0) {
+                    target.health = (target.health - damage).max(0);
+                }
+                c.monsters.iter().all(|m| m.health <= 0)
+            }
+            _ => return,
+        };
+        if all_dead {
+            quest.current_encounter += 1;
         }
     }
 }
@@ -332,9 +353,30 @@ impl App {
             Some(q) => q,
             None => return,
         };
-        let text = Text::from(vec![
-            Line::from(format!(" Encounter: {}", quest.current_encounter)),
-        ]);
+
+        let mut lines = vec![Line::from(format!(" Encounter: {}", quest.current_encounter))];
+
+        match quest.encounters.get(quest.current_encounter as usize) {
+            Some(Encounter::CombatEncounter(combat)) => {
+                lines.push(Line::from(" Combat!".bold()));
+                for (i, monster) in combat.monsters.iter().enumerate() {
+                    lines.push(Line::from(format!(
+                        "  Enemy {}: {}/{} hp  {}/{} ep",
+                        i + 1,
+                        monster.health,
+                        monster.max_health,
+                        monster.energy,
+                        monster.max_energy
+                    )));
+                }
+            }
+            Some(Encounter::NpcEncounter(_)) => {
+                lines.push(Line::from(" NPC Encounter"));
+            }
+            _ => {}
+        }
+
+        let text = Text::from(lines);
 
         Paragraph::new(text)
             .block(block)

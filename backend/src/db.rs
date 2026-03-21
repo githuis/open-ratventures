@@ -98,31 +98,7 @@ impl DbConnection {
         .flatten()
     }
 
-    pub async fn new_quest(&self) -> Result<Quest> {
-        let encounters = {
-            let mut rng = rand::thread_rng();
-            let mut encounters = Vec::new();
-            for i in 0..MAX_ENCOUNTER_LENGTH {
-                let encounter = if i % 2 == 0 {
-                    let count = rng.gen_range(1..=5);
-                    let hp_each = (30 / count).max(1);
-                    let monsters = (0..count)
-                        .map(|_| Unit {
-                            health: hp_each as i32,
-                            max_health: hp_each as i32,
-                            energy: 10,
-                            max_energy: 10,
-                            ..Default::default()
-                        })
-                        .collect();
-                    Encounter::CombatEncounter(Combat { monsters, turn: 0 })
-                } else {
-                    Encounter::NpcEncounter(EncounterReward::CoinAndExperienceReward(10, 20))
-                };
-                encounters.push(encounter);
-            }
-            encounters
-        };
+    pub async fn new_quest(&self, encounters: Vec<Encounter>) -> Result<Quest> {
 
         let id = sqlx::query("INSERT INTO quests (current_encounter) VALUES (0)")
             .execute(&self.pool)
