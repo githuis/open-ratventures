@@ -1,0 +1,31 @@
+{
+  "id": "cheese_grater_blade",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "text": "You almost trip over it: a four-sided box grater, the kind used for cheese. One corner has been bent into a rough handle shape. Someone put real effort into this. The grating surface catches the torchlight with a menacing shimmer.",
+      "choices": [
+        {
+          "text": "Pick it up. Unconventional, but you respect the commitment.",
+          "next": "take",
+          "outcome": null
+        },
+        {
+          "text": "Leave it for a true connoisseur.",
+          "next": null,
+          "outcome": "NextEncounter"
+        }
+      ]
+    },
+    "take": {
+      "text": "It fits your grip surprisingly well. You make a practice swipe through the air. There's a faint whistling sound. Yeah. This'll shred.",
+      "choices": [
+        {
+          "text": "Onwards.",
+          "next": null,
+          "outcome": { "GiveItem": { "item_name": "Cheese Grater Blade", "cost": 0 } }
+        }
+      ]
+    }
+  }
+}

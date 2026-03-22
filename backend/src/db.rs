@@ -126,12 +126,12 @@ impl DbConnection {
             description: String,
             effect_type: String,
             effect_value: i32,
-            consumable: bool,
-            quantity: i32,
+            charges: i32,
+            charges_remaining: i32,
         }
 
         let rows = sqlx::query_as::<_, Row>(
-            "SELECT i.id, i.name, i.description, i.effect_type, i.effect_value, i.consumable, ci.quantity
+            "SELECT i.id, i.name, i.description, i.effect_type, i.effect_value, i.charges, ci.charges_remaining
              FROM character_items ci
              JOIN items i ON ci.item_id = i.id
              JOIN characters c ON c.id = ci.character_id
@@ -155,9 +155,9 @@ impl DbConnection {
                         name: r.name,
                         description: r.description,
                         effect,
-                        consumable: r.consumable,
+                        charges: r.charges,
                     },
-                    quantity: r.quantity,
+                    charges_remaining: r.charges_remaining,
                 }
             })
             .collect())
@@ -168,16 +168,23 @@ impl DbConnection {
             .bind(user_id)
             .fetch_one(&self.pool)
             .await?;
-        let item_id: i32 = sqlx::query_scalar("SELECT id FROM items WHERE name = $1 LIMIT 1")
+
+        #[derive(sqlx::FromRow)]
+        struct ItemRow { id: i32, charges: i32 }
+        let item = sqlx::query_as::<_, ItemRow>("SELECT id, charges FROM items WHERE name = $1 LIMIT 1")
             .bind(item_name)
             .fetch_one(&self.pool)
             .await?;
+
+        // On conflict: add charges (or keep -1 for infinite)
         sqlx::query(
-            "INSERT INTO character_items (character_id, item_id, quantity) VALUES ($1, $2, 1)
-             ON CONFLICT(character_id, item_id) DO UPDATE SET quantity = quantity + 1",
+            "INSERT INTO character_items (character_id, item_id, charges_remaining) VALUES ($1, $2, $3)
+             ON CONFLICT(character_id, item_id) DO UPDATE SET
+               charges_remaining = CASE WHEN $3 = -1 THEN -1 ELSE charges_remaining + $3 END",
         )
         .bind(char_id)
-        .bind(item_id)
+        .bind(item.id)
+        .bind(item.charges)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -189,16 +196,21 @@ impl DbConnection {
             .fetch_one(&self.pool)
             .await?;
 
+        // Decrement charges unless infinite (-1)
         sqlx::query(
-            "UPDATE character_items SET quantity = quantity - 1 WHERE character_id = $1 AND item_id = $2",
+            "UPDATE character_items
+             SET charges_remaining = CASE WHEN charges_remaining = -1 THEN -1 ELSE charges_remaining - 1 END
+             WHERE character_id = $1 AND item_id = $2",
         )
         .bind(char_id)
         .bind(item_id)
         .execute(&self.pool)
         .await?;
 
-        sqlx::query("DELETE FROM character_items WHERE character_id = $1 AND quantity <= 0")
+        // Remove when all charges spent
+        sqlx::query("DELETE FROM character_items WHERE character_id = $1 AND item_id = $2 AND charges_remaining = 0")
             .bind(char_id)
+            .bind(item_id)
             .execute(&self.pool)
             .await?;
 

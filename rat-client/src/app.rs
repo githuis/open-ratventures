@@ -584,10 +584,10 @@ impl App {
                 Some(Encounter::CombatEncounter(c)) => c,
                 _ => return,
             };
-            if let Some(target) = combat.monsters.iter_mut().find(|m| m.health > 0) {
-                target.health = (target.health - damage).max(0);
+            if let Some(target) = combat.monsters.iter_mut().find(|m| m.unit.health > 0) {
+                target.unit.health = (target.unit.health - damage).max(0);
             }
-            let alive = combat.monsters.iter().filter(|m| m.health > 0).count();
+            let alive = combat.monsters.iter().filter(|m| m.unit.health > 0).count();
             combat.turn += 1;
             if alive == 0 {
                 quest.current_encounter += 1;
@@ -595,9 +595,29 @@ impl App {
             (alive == 0, alive)
         };
 
-        // Phase 2: monster retaliation
+        // Phase 2: monster retaliation — each living monster attacks or uses an item
         if !encounter_cleared && monsters_alive > 0 {
-            let monster_damage = monsters_alive as i32 * 3;
+            let monster_damage: i32 = {
+                let quest = self.active_quest.as_mut().unwrap();
+                let idx = quest.current_encounter as usize;
+                let combat = match quest.encounters.get_mut(idx) {
+                    Some(Encounter::CombatEncounter(c)) => c,
+                    _ => return,
+                };
+                combat.monsters.iter_mut()
+                    .filter(|m| m.unit.health > 0)
+                    .map(|m| {
+                        // find usable item (charges > 0 or infinite)
+                        if let Some(item) = m.items.iter_mut().find(|it| it.charges != 0) {
+                            let dmg = match item.effect { ratback::data::ItemEffect::Damage(d) => d, _ => m.attack };
+                            if item.charges > 0 { item.charges -= 1; }
+                            dmg
+                        } else {
+                            m.attack
+                        }
+                    })
+                    .sum()
+            };
             self.last_combat_damage = Some(monster_damage);
             if let Some(c) = self.active_character.as_mut() {
                 c.unit.health = (c.unit.health - monster_damage).max(0);
@@ -634,10 +654,10 @@ impl App {
                 if let Some(quest) = self.active_quest.as_mut() {
                     let idx = quest.current_encounter as usize;
                     if let Some(Encounter::CombatEncounter(c)) = quest.encounters.get_mut(idx) {
-                        if let Some(target) = c.monsters.iter_mut().find(|m| m.health > 0) {
-                            target.health = (target.health - dmg).max(0);
+                        if let Some(target) = c.monsters.iter_mut().find(|m| m.unit.health > 0) {
+                            target.unit.health = (target.unit.health - dmg).max(0);
                         }
-                        if c.monsters.iter().all(|m| m.health <= 0) {
+                        if c.monsters.iter().all(|m| m.unit.health <= 0) {
                             quest.current_encounter += 1;
                             encounter_cleared = true;
                         }
@@ -667,11 +687,17 @@ impl App {
             }
         }
 
-        if inv_item.item.consumable {
+        // consume one charge; remove from inventory if finite and exhausted
+        if inv_item.item.charges != -1 {
             if let Some(user) = &self.active_user {
                 let _ = self.client.delete_character_item(user.id, inv_item.item.id);
             }
-            self.inventory.remove(index);
+            if let Some(slot) = self.inventory.get_mut(index) {
+                slot.charges_remaining -= 1;
+                if slot.charges_remaining <= 0 {
+                    self.inventory.remove(index);
+                }
+            }
         }
 
         if let Some(q) = &self.active_quest {
@@ -816,7 +842,8 @@ impl App {
                     ItemEffect::Heal(h) => format!("heal {}", h),
                     ItemEffect::FullHeal => "full heal".to_string(),
                 };
-                lines.push(Line::from(format!("  {} x{} ({})", inv.item.name, inv.quantity, effect_str)));
+                let charges_str = if inv.charges_remaining == -1 { "∞".to_string() } else { inv.charges_remaining.to_string() };
+                lines.push(Line::from(format!("  {} x{} ({})", inv.item.name, charges_str, effect_str)));
             }
         }
 
@@ -1113,16 +1140,16 @@ impl App {
         ];
 
         for (i, m) in combat.monsters.iter().enumerate() {
-            let label = if m.health <= 0 {
-                format!("  Enemy {} [DEAD]", i + 1)
+            let label = if m.unit.health <= 0 {
+                format!("  {} [DEAD]", m.name)
             } else {
-                format!("  Enemy {}", i + 1)
+                format!("  {}", m.name)
             };
             lines.push(Line::from(vec![
                 label.into(),
                 "  ".into(),
-                Span::styled(format!("{}/{} hp", m.health, m.max_health), text_style),
-                format!("  {}/{} ep", m.energy, m.max_energy).into(),
+                Span::styled(format!("{}/{} hp", m.unit.health, m.unit.max_health), text_style),
+                format!("  atk {}", m.attack).into(),
             ]));
         }
 
@@ -1149,7 +1176,7 @@ impl App {
                     ItemEffect::Heal(h) => format!("heal {}", h),
                 };
                 lines.push(Line::from(vec![
-                    format!(" [{}] {} (x{}) — ", i + 1, inv.item.name, inv.quantity).into(),
+                    format!(" [{}] {} ({}) — ", i + 1, inv.item.name, if inv.charges_remaining == -1 { "∞".to_string() } else { format!("x{}", inv.charges_remaining) }).into(),
                     Span::styled(effect_str, text_style),
                 ]));
             }
@@ -1256,7 +1283,7 @@ impl App {
             };
             lines.push(Line::from(vec![
                 Span::styled(format!("  {} ", inv.item.name), text_style),
-                format!("x{}  ", inv.quantity).into(),
+                if inv.charges_remaining == -1 { "∞  ".into() } else { format!("x{}  ", inv.charges_remaining).into() },
                 Span::styled(format!("[{}]", effect_str), Style::default().fg(C_ACCENT)),
             ]));
             lines.push(Line::from(vec![

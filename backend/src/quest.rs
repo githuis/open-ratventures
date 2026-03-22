@@ -7,11 +7,12 @@ use axum::{
 use rand::Rng;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::data::{CharacterWrapper, MAX_ENCOUNTER_LENGTH, Unit};
+use crate::data::{CharacterWrapper, MAX_ENCOUNTER_LENGTH};
 use crate::db::DbConnection;
-use crate::quest_data::{Combat, CompleteQuestRequest, Dialogue, Encounter, JoinQuestRequest, Quest, QuestSummary, UpdateEncountersRequest};
+use crate::quest_data::{Combat, CompleteQuestRequest, Dialogue, Encounter, JoinQuestRequest, Monster, Quest, QuestSummary, UpdateEncountersRequest};
 
 type DialogueMap = Arc<HashMap<String, Dialogue>>;
+type EnemyList = Arc<Vec<Monster>>;
 
 pub fn routes() -> Router {
     Router::new()
@@ -28,13 +29,14 @@ pub fn routes() -> Router {
 async fn init_quest(
     Extension(db): Extension<DbConnection>,
     Extension(dialogues): Extension<DialogueMap>,
+    Extension(enemies): Extension<EnemyList>,
     Json(user_id): Json<i32>,
 ) -> Json<Quest> {
     if let Some(existing) = db.get_quest_for_user(user_id).await {
         return Json(existing);
     }
     let ids: Vec<String> = dialogues.keys().cloned().collect();
-    let quest = db.new_quest(make_encounters(&ids), user_id).await.unwrap();
+    let quest = db.new_quest(make_encounters(&ids, &enemies), user_id).await.unwrap();
     Json(quest)
 }
 
@@ -93,19 +95,20 @@ async fn get_dialogue(
     dialogues.get(&id).cloned().map(Json).ok_or(StatusCode::NOT_FOUND)
 }
 
-fn make_encounters(dialogue_ids: &[String]) -> Vec<Encounter> {
+fn make_encounters(dialogue_ids: &[String], enemies: &[Monster]) -> Vec<Encounter> {
     let mut rng = rand::thread_rng();
     (0..MAX_ENCOUNTER_LENGTH).map(|i| {
-        if i % 2 == 0 {
-            let count = rng.gen_range(1..=5);
-            let hp_each = (30 / count).max(1);
+        if i % 2 == 0 && !enemies.is_empty() {
+            let count = rng.gen_range(1..=3usize);
             let monsters = (0..count)
-                .map(|_| Unit {
-                    health: hp_each as i32,
-                    max_health: hp_each as i32,
-                    energy: 10,
-                    max_energy: 10,
-                    ..Default::default()
+                .map(|_| {
+                    let template = &enemies[rng.gen_range(0..enemies.len())];
+                    Monster {
+                        unit: template.unit,
+                        name: template.name.clone(),
+                        attack: template.attack,
+                        items: template.items.clone(),
+                    }
                 })
                 .collect();
             Encounter::CombatEncounter(Combat { monsters, turn: 0 })

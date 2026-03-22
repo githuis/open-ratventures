@@ -1,0 +1,31 @@
+{
+  "id": "sewer_shiv",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "text": "You nearly slip on a patch of slick stone. Looking down, you find a strip of corroded metal, one edge serrated by rust into something almost intentional. It smells like the sewer. Everything down here smells like the sewer.",
+      "choices": [
+        {
+          "text": "Pick it up. Beggars can't be choosers.",
+          "next": "take",
+          "outcome": null
+        },
+        {
+          "text": "Keep moving.",
+          "next": null,
+          "outcome": "NextEncounter"
+        }
+      ]
+    },
+    "take": {
+      "text": "You wrap it in a strip of cloth and tuck it away. It's still dripping. You try not to think about what from.",
+      "choices": [
+        {
+          "text": "Move on.",
+          "next": null,
+          "outcome": { "GiveItem": { "item_name": "Sewer Shiv", "cost": 0 } }
+        }
+      ]
+    }
+  }
+}

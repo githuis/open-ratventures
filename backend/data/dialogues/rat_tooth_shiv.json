@@ -1,0 +1,21 @@
+{
+  "id": "rat_tooth_shiv",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "text": "Wedged between two stones on the dungeon floor, you spot something gleaming. On closer inspection it's a rat's fang — enormous, cracked down the middle, lashed to a stick with what looks like intestine string. Crude. Revolting. Probably effective.",
+      "choices": [
+        {
+          "text": "Pocket the shiv.",
+          "next": null,
+          "outcome": { "GiveItem": { "item_name": "Rat Tooth Shiv", "cost": 0 } }
+        },
+        {
+          "text": "Leave it. You have standards.",
+          "next": null,
+          "outcome": "NextEncounter"
+        }
+      ]
+    }
+  }
+}

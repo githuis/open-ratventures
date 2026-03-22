@@ -1,0 +1,9 @@
+{
+  "name": "Giant Sewer Rat",
+  "unit": { "id": 0, "ref_id": 0, "health": 14, "max_health": 14, "energy": 8, "max_energy": 8 },
+  "attack": 3,
+  "items": [
+    { "id": 0, "name": "Claw Swipe", "description": "Rakes with filthy claws.",          "effect": { "Damage": 5 }, "charges": -1 },
+    { "id": 0, "name": "Tail Slam",  "description": "Smashes with a thick scaly tail.",  "effect": { "Damage": 7 }, "charges": 3  }
+  ]
+}

@@ -85,13 +85,13 @@ pub struct Item {
     pub name: String,
     pub description: String,
     pub effect: ItemEffect,
-    pub consumable: bool,
+    pub charges: i32, // -1 = infinite, >0 = limited uses
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InventoryItem {
     pub item: Item,
-    pub quantity: i32,
+    pub charges_remaining: i32, // -1 = infinite
 }
 
 impl Unit {

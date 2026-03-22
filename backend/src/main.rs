@@ -4,7 +4,32 @@ use ratback::db::DbConnection;
 use std::{ collections::HashMap, net::SocketAddr, sync::Arc };
 use tokio::net::TcpListener;
 use ratback::data::User;
-use ratback::quest_data::Dialogue;
+use ratback::quest_data::{Dialogue, Monster};
+
+fn load_enemies() -> Arc<Vec<Monster>> {
+    let candidates = ["backend/data/enemies", "data/enemies"];
+    let dir = candidates.iter().map(std::path::Path::new).find(|p| p.exists());
+
+    let mut monsters = Vec::new();
+    if let Some(dir) = dir {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                if entry.path().extension().and_then(|e| e.to_str()) != Some("json") {
+                    continue;
+                }
+                match std::fs::read_to_string(entry.path())
+                    .ok()
+                    .and_then(|s| serde_json::from_str::<Monster>(&s).ok())
+                {
+                    Some(m) => monsters.push(m),
+                    None => eprintln!("Failed to parse enemy '{}'", entry.path().display()),
+                }
+            }
+        }
+    }
+    println!("Loaded {} enemy templates", monsters.len());
+    Arc::new(monsters)
+}
 
 fn load_dialogues() -> Arc<HashMap<String, Dialogue>> {
     let candidates = ["backend/data/dialogues", "data/dialogues"];
@@ -36,12 +61,14 @@ fn load_dialogues() -> Arc<HashMap<String, Dialogue>> {
 async fn main() -> Result<()> {
     let db: DbConnection = DbConnection::new().await.unwrap();
     let dialogues = load_dialogues();
+    let enemies = load_enemies();
 
     let app = Router::new()
         .route("/api/hello-world", get(hello_world))
         .route("/api/register", post(register))
         .nest("/api", ratback::quest::routes())
         .nest("/api", ratback::users::routes())
+        .layer(Extension(enemies))
         .layer(Extension(dialogues))
         .layer(Extension(db));
 

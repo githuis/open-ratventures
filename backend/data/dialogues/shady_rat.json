@@ -13,7 +13,7 @@
     "threaten": {
       "text": "The rat bares his teeth. 'You found it.' He lunges!",
       "choices": [
-        { "text": "Brace for combat!", "next": null, "outcome": { "Combat": { "monsters": [{ "id": 0, "ref_id": 0, "health": 50, "energy": 30, "max_health": 50, "max_energy": 30 }], "turn": 0 } } }
+        { "text": "Brace for combat!", "next": null, "outcome": { "Combat": { "monsters": [{ "unit": { "id": 0, "ref_id": 0, "health": 50, "energy": 30, "max_health": 50, "max_energy": 30 }, "name": "Hooded Rat", "attack": 5, "items": [] }], "turn": 0 } } }
       ]
     },
     "neutral": {

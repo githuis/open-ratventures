@@ -1,0 +1,9 @@
+{
+  "name": "Ratling Brute",
+  "unit": { "id": 0, "ref_id": 0, "health": 20, "max_health": 20, "energy": 6, "max_energy": 6 },
+  "attack": 4,
+  "items": [
+    { "id": 0, "name": "Crushing Blow", "description": "Slams a makeshift club.",        "effect": { "Damage": 8  }, "charges": 3 },
+    { "id": 0, "name": "Frenzy",        "description": "Attacks in a wild blind rage.",  "effect": { "Damage": 10 }, "charges": 1 }
+  ]
+}

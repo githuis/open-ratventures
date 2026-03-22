@@ -5,7 +5,7 @@
     "greeting": {
       "text": "A large, ratty-looking cat sprawls across the corridor, one eye half-open. It smells like old cheese and bad decisions. You think it might be sleeping.",
       "choices": [
-        { "text": "Charge it head-on!", "next": null, "outcome": { "Combat": { "monsters": [{ "id": 0, "ref_id": 0, "health": 100, "energy": 75, "max_health": 100, "max_energy": 75 }], "turn": 0 } } },
+        { "text": "Charge it head-on!", "next": null, "outcome": { "Combat": { "monsters": [{ "unit": { "id": 0, "ref_id": 0, "health": 100, "energy": 75, "max_health": 100, "max_energy": 75 }, "name": "Ratty Cat", "attack": 8, "items": [] }], "turn": 0 } } },
         { "text": "Hold on... let's talk this over.", "next": "discuss", "outcome": null }
       ]
     },
@@ -13,13 +13,13 @@
       "text": "The party huddles up, keeping one nervous eye on the cat. It licks its paw. It is not impressed.",
       "choices": [
         { "text": "We sneak around it. Carefully.", "next": "sneak_attempt", "outcome": null },
-        { "text": "Nah. We fight it.", "next": null, "outcome": { "Combat": { "monsters": [{ "id": 0, "ref_id": 0, "health": 100, "energy": 75, "max_health": 100, "max_energy": 75 }], "turn": 0 } } }
+        { "text": "Nah. We fight it.", "next": null, "outcome": { "Combat": { "monsters": [{ "unit": { "id": 0, "ref_id": 0, "health": 100, "energy": 75, "max_health": 100, "max_energy": 75 }, "name": "Ratty Cat", "attack": 8, "items": [] }], "turn": 0 } } }
       ]
     },
     "sneak_attempt": {
       "text": "One by one the party presses against the wall and edges forward... almost there... then someone steps on a twig. The cat's head snaps up.",
       "choices": [
-        { "text": "RUN!", "next": null, "outcome": { "Combat": { "monsters": [{ "id": 0, "ref_id": 0, "health": 100, "energy": 75, "max_health": 100, "max_energy": 75 }], "turn": 0 } } }
+        { "text": "RUN!", "next": null, "outcome": { "Combat": { "monsters": [{ "unit": { "id": 0, "ref_id": 0, "health": 100, "energy": 75, "max_health": 100, "max_energy": 75 }, "name": "Ratty Cat", "attack": 8, "items": [] }], "turn": 0 } } }
       ]
     }
   }
