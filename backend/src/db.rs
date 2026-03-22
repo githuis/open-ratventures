@@ -9,7 +9,8 @@ use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 use crate::data::{
-    Character, CharacterWrapper, MAX_ENCOUNTER_LENGTH, Unit, User, random_fantasy_name,
+    Character, CharacterWrapper, InventoryItem, Item, ItemEffect, MAX_ENCOUNTER_LENGTH, Unit, User,
+    random_fantasy_name,
 };
 use crate::quest_data::QuestSummary;
 use crate::quest_data::{Combat, Encounter, Quest};
@@ -115,6 +116,93 @@ impl DbConnection {
                 .fetch_one(&self.pool)
                 .await?,
         )
+    }
+
+    pub async fn get_character_items(&self, user_id: i32) -> Result<Vec<InventoryItem>> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: i32,
+            name: String,
+            description: String,
+            effect_type: String,
+            effect_value: i32,
+            consumable: bool,
+            quantity: i32,
+        }
+
+        let rows = sqlx::query_as::<_, Row>(
+            "SELECT i.id, i.name, i.description, i.effect_type, i.effect_value, i.consumable, ci.quantity
+             FROM character_items ci
+             JOIN items i ON ci.item_id = i.id
+             JOIN characters c ON c.id = ci.character_id
+             WHERE c.user_id = $1",
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                let effect = match r.effect_type.as_str() {
+                    "heal" => ItemEffect::Heal(r.effect_value),
+                    "full_heal" => ItemEffect::FullHeal,
+                    _ => ItemEffect::Damage(r.effect_value),
+                };
+                InventoryItem {
+                    item: Item {
+                        id: r.id,
+                        name: r.name,
+                        description: r.description,
+                        effect,
+                        consumable: r.consumable,
+                    },
+                    quantity: r.quantity,
+                }
+            })
+            .collect())
+    }
+
+    pub async fn give_item_to_character(&self, user_id: i32, item_name: &str) -> Result<()> {
+        let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?;
+        let item_id: i32 = sqlx::query_scalar("SELECT id FROM items WHERE name = $1 LIMIT 1")
+            .bind(item_name)
+            .fetch_one(&self.pool)
+            .await?;
+        sqlx::query(
+            "INSERT INTO character_items (character_id, item_id, quantity) VALUES ($1, $2, 1)
+             ON CONFLICT(character_id, item_id) DO UPDATE SET quantity = quantity + 1",
+        )
+        .bind(char_id)
+        .bind(item_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn consume_item(&self, user_id: i32, item_id: i32) -> Result<()> {
+        let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        sqlx::query(
+            "UPDATE character_items SET quantity = quantity - 1 WHERE character_id = $1 AND item_id = $2",
+        )
+        .bind(char_id)
+        .bind(item_id)
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query("DELETE FROM character_items WHERE character_id = $1 AND quantity <= 0")
+            .bind(char_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
     }
 
     pub async fn get_quest_by_id(&self, quest_id: i32) -> Option<Quest> {

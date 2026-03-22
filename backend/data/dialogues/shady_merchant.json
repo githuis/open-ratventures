@@ -1,0 +1,23 @@
+{
+  "id": "shady_merchant",
+  "start": "approach",
+  "nodes": {
+    "approach": {
+      "text": "A cloaked figure lurks in the shadows. He eyes you up and down, then pulls back his cloak to reveal a collection of blades strapped to his chest. \"Psst. You look like someone who could use a little... insurance. Poisoned Dagger, freshly coated. Fifteen gold.\"",
+      "choices": [
+        { "text": "Buy the dagger (15g)", "next": "bought", "outcome": null },
+        { "text": "Decline and move on", "next": null, "outcome": { "NextEncounter": null } }
+      ]
+    },
+    "bought": {
+      "text": "He slides the dagger across with a grin missing several teeth. \"Pleasure doing business. Don't miss.\"",
+      "choices": [
+        {
+          "text": "Take the dagger and go.",
+          "next": null,
+          "outcome": { "GiveItem": { "item_name": "Poisoned Dagger", "cost": 15 } }
+        }
+      ]
+    }
+  }
+}

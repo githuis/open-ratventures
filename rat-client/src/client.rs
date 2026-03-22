@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use ratback::{data::{CharacterWrapper, User}, quest_data::{Dialogue, Quest, QuestSummary}};
+use ratback::{data::{CharacterWrapper, InventoryItem, User}, quest_data::{Dialogue, Quest, QuestSummary}};
 use reqwest::blocking::Client;
 
 const HOST: &str = "http://localhost:3000/api/";
@@ -84,6 +84,21 @@ impl Rattp {
         let body = serde_json::json!({ "quest_id": quest_id, "user_id": user_id });
         let response = self.http.post(Self::destination("quest/join")).json(&body).send()?.text()?;
         Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn post_give_item(&self, user_id: i32, item_name: &str) -> Result<(), Box<dyn Error>> {
+        self.http.post(Self::destination(&format!("character/{user_id}/items"))).json(item_name).send()?;
+        Ok(())
+    }
+
+    pub fn get_character_items(&self, user_id: i32) -> Result<Vec<InventoryItem>, Box<dyn Error>> {
+        let response = self.http.get(Self::destination(&format!("character/{user_id}/items"))).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn delete_character_item(&self, user_id: i32, item_id: i32) -> Result<(), Box<dyn Error>> {
+        self.http.delete(Self::destination(&format!("character/{user_id}/items/{item_id}"))).send()?;
+        Ok(())
     }
 
     pub fn update_character_unit(&self, user_id: i32, unit: &ratback::data::Unit) -> Result<(), Box<dyn Error>> {

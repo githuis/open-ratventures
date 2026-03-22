@@ -17,10 +17,12 @@ fn load_dialogues() -> Arc<HashMap<String, Dialogue>> {
                 let path = entry.path();
                 if path.extension().map(|e| e == "json").unwrap_or(false) {
                     let id = path.file_stem().unwrap().to_string_lossy().to_string();
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(dialogue) = serde_json::from_str::<Dialogue>(&content) {
-                            map.insert(id, dialogue);
-                        }
+                    match std::fs::read_to_string(&path) {
+                        Err(e) => println!("Failed to read {id}: {e}"),
+                        Ok(content) => match serde_json::from_str::<Dialogue>(&content) {
+                            Ok(dialogue) => { map.insert(id, dialogue); }
+                            Err(e) => println!("Failed to parse dialogue '{id}': {e}"),
+                        },
                     }
                 }
             }

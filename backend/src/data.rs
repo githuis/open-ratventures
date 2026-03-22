@@ -72,9 +72,26 @@ pub struct Unit {
     pub max_energy: i32,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ItemEffect {
+    Damage(i32),
+    Heal(i32),
+    FullHeal,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Item {
     pub id: i32,
     pub name: String,
+    pub description: String,
+    pub effect: ItemEffect,
+    pub consumable: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InventoryItem {
+    pub item: Item,
+    pub quantity: i32,
 }
 
 impl Unit {

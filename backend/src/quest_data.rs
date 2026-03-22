@@ -53,6 +53,7 @@ pub enum DialogueOutcome {
     Reward { coins: i32, experience: i32, #[serde(default)] heal: i32 },
     Damage { amount: i32 },
     Combat(Combat),
+    GiveItem { item_name: String, cost: i32 },
     Escape,
     NextEncounter,
 }
