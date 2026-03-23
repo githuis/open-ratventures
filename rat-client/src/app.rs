@@ -5,10 +5,8 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style, Stylize},
-    symbols::border,
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap},
+    style::{Modifier, Style},
+    widgets::{Clear, Widget},
 };
 use ratback::{
     data::{CharacterWrapper, InventoryItem, ItemEffect, User},
@@ -17,18 +15,7 @@ use ratback::{
 
 use crate::client::Rattp;
 use crate::tui;
-
-// Palette
-// #fbbbad — warm salmon: primary highlighted/styled text
-// #ee8695 — rose pink:   damage, warnings, enemy info, alerts
-// #4a7a96 — muted blue:  borders, labels, secondary UI chrome
-// #333f58 — dark slate:  panel backgrounds (character, party, lobby)
-// #292831 — near-black:  main window background, combat/dialogue
-const C_TEXT: Color    = Color::Rgb(251, 187, 173); // #fbbbad
-const C_ALERT: Color   = Color::Rgb(238, 134, 149); // #ee8695
-const C_ACCENT: Color  = Color::Rgb(74, 122, 150);  // #4a7a96
-const C_PANEL: Color   = Color::Rgb(51, 63, 88);    // #333f58
-const C_BG: Color      = Color::Rgb(41, 40, 49);    // #292831
+use crate::ui::C_TEXT;
 
 #[derive(Debug, Default)]
 pub struct App {
@@ -53,6 +40,7 @@ pub enum TavernState {
 
 #[derive(Debug)]
 pub enum AppState {
+    Welcome,
     Tavern(TavernState),
     Main,
     TextInput(Reason),
@@ -66,7 +54,7 @@ pub enum AppState {
 
 impl Default for AppState {
     fn default() -> Self {
-        AppState::Tavern(TavernState::Main)
+        AppState::Welcome
     }
 }
 
@@ -136,12 +124,18 @@ impl App {
         }
 
         match &self.state {
+            AppState::Welcome => match key_event.code {
+                KeyCode::Char('r') => self.start_register_user(),
+                KeyCode::Char('q') => self.exit(),
+                _ => {}
+            },
+
             AppState::Tavern(TavernState::Main) => {
                 let has_char = self.active_character.is_some();
                 match key_event.code {
                     KeyCode::Char('s') if has_char => self.state = AppState::Tavern(TavernState::Shop),
                     KeyCode::Char('a') if has_char => self.start_quest(),
-                    KeyCode::Char('o') => self.start_register_user(),
+                    KeyCode::Char('o') | KeyCode::Char('r') if has_char => self.start_register_user(),
                     KeyCode::Char('v') => self.open_inventory(),
                     KeyCode::Char('q') => self.exit(),
                     _ => {}
@@ -230,7 +224,7 @@ impl App {
 
     fn toggle_text_input(&mut self, why: Option<Reason>) {
         self.state = match self.state {
-            AppState::Main | AppState::Tavern(_) => match why {
+            AppState::Welcome | AppState::Main | AppState::Tavern(_) => match why {
                 Some(reason) => {
                     self.text_input = Some("".to_string());
                     AppState::TextInput(reason)
@@ -715,6 +709,11 @@ impl Widget for &App {
             .fg(C_TEXT)
             .add_modifier(Modifier::BOLD);
 
+        if matches!(self.state, AppState::Welcome) {
+            self.render_welcome(area, buf, text_style);
+            return;
+        }
+
         let parent_layout = Layout::default()
             .direction(Direction::Horizontal)
             .margin(1)
@@ -727,8 +726,10 @@ impl Widget for &App {
             .split(parent_layout[0]);
 
         self.render_main(area, buf, text_style);
-        self.render_left_panel(left_layout[0], buf);
-        self.render_party(left_layout[1], buf, text_style);
+        if self.active_character.is_some() {
+            self.render_left_panel(left_layout[0], buf);
+            self.render_party(left_layout[1], buf, text_style);
+        }
 
         match &self.state {
             AppState::Tavern(sub) => {
@@ -765,538 +766,3 @@ impl Widget for &App {
     }
 }
 
-impl App {
-    fn render_left_panel(&self, area: Rect, buf: &mut Buffer) {
-        let text_style = Style::default()
-            .fg(C_TEXT)
-            .add_modifier(Modifier::BOLD);
-
-        let block = Block::default()
-            .title(Line::from(" Character ".bold()))
-            .borders(Borders::ALL)
-            .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
-
-        let mut lines: Vec<Line> = Vec::new();
-
-        if let Some(user) = &self.active_user {
-            lines.push(Line::from(vec![
-                "User: ".into(),
-                Span::styled(&user.username, text_style),
-            ]));
-        }
-
-        if let Some(c) = &self.active_character {
-            if !lines.is_empty() {
-                lines.push(Line::from(""));
-            }
-            lines.push(Line::from(vec![
-                "Name:  ".into(),
-                Span::styled(&c.character.name, text_style),
-            ]));
-            lines.push(Line::from(vec![
-                "HP:    ".into(),
-                Span::styled(c.unit.health.to_string(), text_style),
-                "/".into(),
-                Span::styled(c.unit.max_health.to_string(), text_style),
-            ]));
-            lines.push(Line::from(vec![
-                "EP:    ".into(),
-                Span::styled(c.unit.energy.to_string(), text_style),
-                "/".into(),
-                Span::styled(c.unit.max_energy.to_string(), text_style),
-            ]));
-            lines.push(Line::from(vec![
-                "Gold:  ".into(),
-                Span::styled(c.character.coins.to_string(), text_style),
-            ]));
-            lines.push(Line::from(vec![
-                "Exp:   ".into(),
-                Span::styled(c.character.experience.to_string(), text_style),
-            ]));
-        }
-
-        if let Some(quest) = &self.active_quest {
-            if !lines.is_empty() {
-                lines.push(Line::from(""));
-            }
-            let enc_type = match quest.encounters.get(quest.current_encounter as usize) {
-                Some(Encounter::CombatEncounter(_)) => "Combat",
-                Some(Encounter::NpcEncounter(_)) => "NPC",
-                _ => "—",
-            };
-            lines.push(Line::from(vec![
-                "Quest: #".into(),
-                Span::styled(quest.current_encounter.to_string(), text_style),
-                " | ".into(),
-                enc_type.into(),
-            ]));
-        }
-
-        if !self.inventory.is_empty() {
-            lines.push(Line::from(""));
-            lines.push(Line::from(" Items:".bold()));
-            for inv in &self.inventory {
-                let effect_str = match &inv.item.effect {
-                    ItemEffect::Damage(d) => format!("{}dmg", d),
-                    ItemEffect::Heal(h) => format!("heal {}", h),
-                    ItemEffect::FullHeal => "full heal".to_string(),
-                };
-                let charges_str = if inv.charges_remaining == -1 { "∞".to_string() } else { inv.charges_remaining.to_string() };
-                lines.push(Line::from(format!("  {} x{} ({})", inv.item.name, charges_str, effect_str)));
-            }
-        }
-
-        Paragraph::new(lines)
-            .block(block)
-            .bg(C_PANEL)
-            .render(area, buf);
-    }
-
-    fn render_main(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
-        let title = Line::from(" Open Ratventures ".bold());
-
-        let instructions = Line::from(vec![
-            " Register: ".into(),
-            Span::styled("<R>", text_style),
-            " New Character: ".into(),
-            Span::styled("<C>", text_style),
-            " New Quest: ".into(),
-            Span::styled("<A>", text_style),
-            " Quit: ".into(),
-            Span::styled("<Q> ", text_style),
-        ]);
-
-        let block = Block::default()
-            .title(title.centered())
-            .title_bottom(instructions.centered())
-            .bg(C_BG);
-
-        block.render(area, buf);
-    }
-
-    fn render_tavern(&self, area: Rect, buf: &mut Buffer, text_style: Style, sub: &TavernState) {
-        match sub {
-            TavernState::Main => {
-                let has_char = self.active_character.is_some();
-                let dim = Style::default().fg(C_ACCENT);
-
-                let opt = |key: &'static str, label: &'static str, enabled: bool| -> Line<'static> {
-                    if enabled {
-                        Line::from(vec![
-                            "  ".into(),
-                            Span::styled(key, text_style),
-                            format!("  {label}").into(),
-                        ])
-                    } else {
-                        Line::from(Span::styled(
-                            format!("  {key}  {label}  (no character)"),
-                            dim,
-                        ))
-                    }
-                };
-
-                let block = Block::default()
-                    .title(Line::from(" The Rusty Rat Tavern ".bold()))
-                    .borders(Borders::ALL)
-                    .border_set(border::THICK)
-                    .border_style(Style::default().fg(C_ACCENT))
-                    .bg(C_PANEL);
-
-                let lines = vec![
-                    Line::from(""),
-                    Line::from(Span::styled(
-                        "  The tavern is warm and dimly lit. The smell of ale and wood smoke",
-                        text_style,
-                    )),
-                    Line::from(Span::styled(
-                        "  fills the air. A few weathered adventurers nurse their drinks",
-                        text_style,
-                    )),
-                    Line::from(Span::styled(
-                        "  in the corners. The barkeep eyes you with a knowing grin.",
-                        text_style,
-                    )),
-                    Line::from(""),
-                    Line::from(""),
-                    opt("[S]", "Shop — browse goods from the barkeep", has_char),
-                    opt("[A]", "Adventure — seek a quest", has_char),
-                    Line::from(vec![
-                        "  ".into(),
-                        Span::styled("[O]", text_style),
-                        "  Options — change character".into(),
-                    ]),
-                    Line::from(vec![
-                        "  ".into(),
-                        Span::styled("[Q]", text_style),
-                        "  Quit".into(),
-                    ]),
-                ];
-
-                Paragraph::new(lines)
-                    .block(block)
-                    .wrap(Wrap { trim: false })
-                    .render(area, buf);
-            }
-            TavernState::Shop => {
-                let coins = self.active_character.as_ref().map(|c| c.character.coins).unwrap_or(0);
-                let can_afford = coins >= 5;
-
-                let block = Block::default()
-                    .title(Line::from(" Barkeep's Wares ".bold()))
-                    .borders(Borders::ALL)
-                    .border_set(border::THICK)
-                    .border_style(Style::default().fg(C_ACCENT))
-                    .bg(C_PANEL);
-
-                let gem_line = if can_afford {
-                    Line::from(vec![
-                        "  ".into(),
-                        Span::styled("[1]", text_style),
-                        "  Gem of Resurrection — restore full health  ".into(),
-                        Span::styled("(5 gold)", Style::default().fg(C_ALERT)),
-                    ])
-                } else {
-                    Line::from(Span::styled(
-                        "  [1]  Gem of Resurrection — restore full health  (5 gold)  [not enough gold]",
-                        Style::default().fg(C_ACCENT),
-                    ))
-                };
-
-                let lines = vec![
-                    Line::from(""),
-                    Line::from(Span::styled("  \"What'll it be, traveller?\"", text_style)),
-                    Line::from(""),
-                    gem_line,
-                    Line::from(""),
-                    Line::from(vec![
-                        "  ".into(),
-                        Span::styled("[Esc]", text_style),
-                        "  Back to the tavern".into(),
-                    ]),
-                ];
-
-                Paragraph::new(lines)
-                    .block(block)
-                    .wrap(Wrap { trim: false })
-                    .render(area, buf);
-            }
-        }
-    }
-
-    fn render_input(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
-        let block = Block::default()
-            .title(Line::from(
-                " Input username - Enter to Finish, Esc to stop ".bold(),
-            ))
-            .borders(Borders::ALL)
-            .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
-
-        let current_text = match &self.text_input {
-            Some(x) => Line::from(vec![Span::styled(x, text_style)]),
-            None => Line::from(vec!["Type a username".into()]),
-        };
-        let text = Text::from(vec![current_text]);
-
-        Paragraph::new(text)
-            .block(block)
-            .bg(C_PANEL)
-            .render(area, buf);
-    }
-
-    fn render_dialogue(&self, area: Rect, buf: &mut Buffer, text_style: Style, dialogue: &Dialogue, current_node: &str) {
-        let node = match dialogue.nodes.get(current_node) {
-            Some(n) => n,
-            None => return,
-        };
-
-        let block = Block::default()
-            .title(Line::from(" Conversation ".bold()))
-            .borders(Borders::ALL)
-            .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
-
-        let mut lines = vec![
-            Line::from(""),
-            Line::from(Span::styled(node.text.clone(), text_style)),
-            Line::from(""),
-        ];
-
-        let coins = self.active_character.as_ref().map(|c| c.character.coins as i32).unwrap_or(0);
-
-        let choice_locked = |choice: &ratback::quest_data::DialogueChoice| -> bool {
-            match &choice.outcome {
-                Some(DialogueOutcome::GiveItem { cost, .. }) => coins < *cost,
-                None => {
-                    // read ahead: if every choice in the next node is locked, this path is a dead end
-                    if let Some(next_id) = &choice.next {
-                        if let Some(next_node) = dialogue.nodes.get(next_id.as_str()) {
-                            !next_node.choices.is_empty()
-                                && next_node.choices.iter().all(|c| match &c.outcome {
-                                    Some(DialogueOutcome::GiveItem { cost, .. }) => coins < *cost,
-                                    _ => false,
-                                })
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            }
-        };
-
-        for (i, choice) in node.choices.iter().enumerate() {
-            let affordable = !choice_locked(choice);
-            if affordable {
-                lines.push(Line::from(vec![
-                    Span::styled(format!(" [{}] ", i + 1), text_style),
-                    choice.text.clone().into(),
-                ]));
-            } else {
-                lines.push(Line::from(vec![
-                    Span::styled(
-                        format!(" [{}] {} (not enough gold)", i + 1, choice.text),
-                        Style::default().fg(C_ACCENT),
-                    ),
-                ]));
-            }
-        }
-
-        Paragraph::new(lines)
-            .block(block)
-            .wrap(Wrap { trim: false })
-            .bg(C_BG)
-            .render(area, buf);
-    }
-
-
-    fn render_quest_lobby(&self, area: Rect, buf: &mut Buffer, text_style: Style, quests: &[QuestSummary]) {
-        let block = Block::default()
-            .title(Line::from(" Quest Lobby ".bold()))
-            .borders(Borders::ALL)
-            .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
-
-        let mut lines = vec![Line::from(""), Line::from(" Open quests:".bold()), Line::from("")];
-
-        if quests.is_empty() {
-            lines.push(Line::from("  No open quests."));
-        } else {
-            for (i, q) in quests.iter().enumerate() {
-                lines.push(Line::from(vec![
-                    Span::styled(format!(" [{}] ", i + 1), text_style),
-                    format!("Quest #{} — {} member(s)", q.id, q.member_count).into(),
-                ]));
-            }
-        }
-
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(" [N] ", text_style),
-            "Create new quest".into(),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled(" [R] ", text_style),
-            "Refresh".into(),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled(" [Esc] ", text_style),
-            "Cancel".into(),
-        ]));
-
-        Paragraph::new(lines)
-            .block(block)
-            .bg(C_PANEL)
-            .render(area, buf);
-    }
-
-    fn render_combat(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
-        let quest = match &self.active_quest {
-            Some(q) => q,
-            None => return,
-        };
-        let combat = match quest.encounters.get(quest.current_encounter as usize) {
-            Some(Encounter::CombatEncounter(c)) => c,
-            _ => return,
-        };
-
-        let block = Block::default()
-            .title(Line::from(" Combat ".bold()))
-            .borders(Borders::ALL)
-            .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
-
-        let mut lines = vec![
-            Line::from(vec![
-                " Turn ".into(),
-                Span::styled(combat.turn.to_string(), text_style),
-            ]),
-            Line::from(""),
-            Line::from(" Enemies:".bold()),
-            Line::from(""),
-        ];
-
-        for (i, m) in combat.monsters.iter().enumerate() {
-            let label = if m.unit.health <= 0 {
-                format!("  {} [DEAD]", m.name)
-            } else {
-                format!("  {}", m.name)
-            };
-            lines.push(Line::from(vec![
-                label.into(),
-                "  ".into(),
-                Span::styled(format!("{}/{} hp", m.unit.health, m.unit.max_health), text_style),
-                format!("  atk {}", m.attack).into(),
-            ]));
-        }
-
-        lines.push(Line::from(""));
-        if let Some(dmg) = self.last_combat_damage {
-            lines.push(Line::from(vec![
-                " Monsters dealt ".into(),
-                Span::styled(dmg.to_string(), Style::default().fg(C_ALERT).add_modifier(Modifier::BOLD)),
-                " damage!".into(),
-            ]));
-        }
-        lines.push(Line::from(vec![
-            " [F] Attack — ".into(),
-            Span::styled("5 dmg to first living enemy", text_style),
-        ]));
-
-        if !self.inventory.is_empty() {
-            lines.push(Line::from(""));
-            lines.push(Line::from(" Items:".bold()));
-            for (i, inv) in self.inventory.iter().enumerate() {
-                let effect_str = match &inv.item.effect {
-                    ItemEffect::FullHeal => "full heal".to_string(),
-                    ItemEffect::Damage(d) => format!("{} dmg", d),
-                    ItemEffect::Heal(h) => format!("heal {}", h),
-                };
-                lines.push(Line::from(vec![
-                    format!(" [{}] {} ({}) — ", i + 1, inv.item.name, if inv.charges_remaining == -1 { "∞".to_string() } else { format!("x{}", inv.charges_remaining) }).into(),
-                    Span::styled(effect_str, text_style),
-                ]));
-            }
-        }
-
-        Paragraph::new(lines)
-            .block(block)
-            .bg(C_BG)
-            .render(area, buf);
-    }
-
-    fn render_party(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
-        let block = Block::default()
-            .title(Line::from(" Party ".bold()))
-            .borders(Borders::ALL)
-            .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
-
-        let my_char_id = self.active_character.as_ref().map(|c| c.character.id);
-        let characters: Vec<&CharacterWrapper> = self.party_members.iter()
-            .filter(|c| Some(c.character.id) != my_char_id)
-            .collect();
-
-        let bg = C_PANEL;
-
-        if characters.is_empty() {
-            Paragraph::new(" No other party members")
-                .block(block)
-                .bg(bg)
-                .render(area, buf);
-            return;
-        }
-
-        let inner = block.inner(area);
-        // fill background so uncovered space matches cards
-        buf.set_style(inner, Style::default().bg(bg));
-        block.bg(bg).render(area, buf);
-
-        let card_height = (inner.height / characters.len() as u16).max(1);
-        for (i, c) in characters.iter().enumerate() {
-            let card_area = Rect::new(
-                inner.x,
-                inner.y + i as u16 * card_height,
-                inner.width,
-                card_height,
-            );
-            let card_block = Block::default()
-                .title(Line::from(format!(" {} ", c.character.name)))
-                .borders(Borders::ALL)
-                .border_set(border::PLAIN)
-                .border_style(Style::default().fg(C_ACCENT));
-
-            let lines = vec![
-                Line::from(vec![
-                    "HP ".into(),
-                    Span::styled(
-                        format!("{}/{}", c.unit.health, c.unit.max_health),
-                        text_style,
-                    ),
-                ]),
-                Line::from(vec![
-                    "EP ".into(),
-                    Span::styled(
-                        format!("{}/{}", c.unit.energy, c.unit.max_energy),
-                        text_style,
-                    ),
-                ]),
-            ];
-
-            Paragraph::new(lines)
-                .block(card_block)
-                .bg(C_PANEL)
-                .render(card_area, buf);
-        }
-    }
-
-    fn render_inventory_popup(&self, area: Rect, buf: &mut Buffer, text_style: Style, scroll: usize) {
-        let block = Block::default()
-            .title(Line::from(" Inventory ").centered())
-            .title_bottom(Line::from(" [V/Esc] Close  [J/K] Scroll ").centered())
-            .borders(Borders::ALL)
-            .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT))
-            .bg(C_PANEL);
-
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        if self.inventory.is_empty() {
-            Paragraph::new(Line::from(vec![
-                Span::styled(" Your pack is empty.", text_style),
-            ]))
-            .bg(C_PANEL)
-            .render(inner, buf);
-            return;
-        }
-
-        let mut lines: Vec<Line> = vec![Line::from("")];
-        for inv in &self.inventory {
-            let effect_str = match &inv.item.effect {
-                ItemEffect::Damage(d) => format!("{} dmg", d),
-                ItemEffect::Heal(h) => format!("heal {}", h),
-                ItemEffect::FullHeal => "full heal".to_string(),
-            };
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {} ", inv.item.name), text_style),
-                if inv.charges_remaining == -1 { "∞  ".into() } else { format!("x{}  ", inv.charges_remaining).into() },
-                Span::styled(format!("[{}]", effect_str), Style::default().fg(C_ACCENT)),
-            ]));
-            lines.push(Line::from(vec![
-                "    ".into(),
-                Span::raw(inv.item.description.clone()),
-            ]));
-            lines.push(Line::from(""));
-        }
-
-        Paragraph::new(lines)
-            .scroll((scroll as u16, 0))
-            .wrap(Wrap { trim: false })
-            .bg(C_PANEL)
-            .render(inner, buf);
-    }
-}
