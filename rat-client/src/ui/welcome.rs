@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::ui::{C_TEXT, C_ACCENT, C_BG};
+use crate::ui::{C_ACCENT, C_BG};
 
 impl App {
     pub(crate) fn render_welcome(&self, area: Rect, buf: &mut Buffer, text_style: Style) {

@@ -1,19 +1,15 @@
 use color_eyre::Result;
-use rand::Rng;
 use std::str::FromStr;
-use std::{env, error::Error, fmt::Debug};
 
-use sqlx::Connection;
-use sqlx::SqliteConnection;
-use sqlx::SqlitePool;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use sqlx::{
+    SqlitePool,
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+};
 
 use crate::data::{
-    Character, CharacterWrapper, InventoryItem, Item, ItemEffect, MAX_ENCOUNTER_LENGTH, Unit, User,
-    random_fantasy_name,
+    Character, CharacterWrapper, InventoryItem, Item, ItemEffect, Unit, User, random_fantasy_name,
 };
-use crate::quest_data::QuestSummary;
-use crate::quest_data::{Combat, Encounter, Quest};
+use crate::quest_data::{Encounter, Quest, QuestSummary};
 
 #[derive(Clone)]
 pub struct DbConnection {
@@ -170,11 +166,15 @@ impl DbConnection {
             .await?;
 
         #[derive(sqlx::FromRow)]
-        struct ItemRow { id: i32, charges: i32 }
-        let item = sqlx::query_as::<_, ItemRow>("SELECT id, charges FROM items WHERE name = $1 LIMIT 1")
-            .bind(item_name)
-            .fetch_one(&self.pool)
-            .await?;
+        struct ItemRow {
+            id: i32,
+            charges: i32,
+        }
+        let item =
+            sqlx::query_as::<_, ItemRow>("SELECT id, charges FROM items WHERE name = $1 LIMIT 1")
+                .bind(item_name)
+                .fetch_one(&self.pool)
+                .await?;
 
         // On conflict: add charges (or keep -1 for infinite)
         sqlx::query(

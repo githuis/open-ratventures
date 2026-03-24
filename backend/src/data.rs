@@ -1,8 +1,6 @@
 use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
-use sqlx::SqliteConnection;
-
 use crate::quest_data::Quest;
 
 pub const MAX_PARTY_SIZE: usize = 3;

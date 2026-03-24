@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::app::{App, TavernState};
-use crate::ui::{C_TEXT, C_ALERT, C_ACCENT, C_PANEL};
+use crate::ui::{C_ALERT, C_ACCENT, C_PANEL};
 
 impl App {
     pub(crate) fn render_tavern(&self, area: Rect, buf: &mut Buffer, text_style: Style, sub: &TavernState) {

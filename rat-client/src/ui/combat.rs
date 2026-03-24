@@ -10,7 +10,7 @@ use ratback::data::ItemEffect;
 use ratback::quest_data::Encounter;
 
 use crate::app::App;
-use crate::ui::{C_TEXT, C_ALERT, C_ACCENT, C_BG};
+use crate::ui::{C_ALERT, C_ACCENT, C_BG};
 
 impl App {
     pub(crate) fn render_combat(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -39,7 +39,7 @@ impl App {
             Line::from(""),
         ];
 
-        for (i, m) in combat.monsters.iter().enumerate() {
+        for (_i, m) in combat.monsters.iter().enumerate() {
             let label = if m.unit.health <= 0 {
                 format!("  {} [DEAD]", m.name)
             } else {

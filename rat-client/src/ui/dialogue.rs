@@ -9,7 +9,7 @@ use ratatui::{
 use ratback::quest_data::{Dialogue, DialogueOutcome};
 
 use crate::app::App;
-use crate::ui::{C_TEXT, C_ACCENT, C_BG};
+use crate::ui::{C_ACCENT, C_BG};
 
 impl App {
     pub(crate) fn render_dialogue(&self, area: Rect, buf: &mut Buffer, text_style: Style, dialogue: &Dialogue, current_node: &str) {

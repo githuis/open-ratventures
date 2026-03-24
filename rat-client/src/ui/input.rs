@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::ui::{C_TEXT, C_ACCENT, C_PANEL};
+use crate::ui::{C_ACCENT, C_PANEL};
 
 impl App {
     pub(crate) fn render_input(&self, area: Rect, buf: &mut Buffer, text_style: Style) {

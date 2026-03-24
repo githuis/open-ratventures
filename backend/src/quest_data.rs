@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::data::{Character, Item, MAX_ENCOUNTER_LENGTH, MAX_PARTY_SIZE, Unit};
+use crate::data::{Item, Unit};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Monster {
