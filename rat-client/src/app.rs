@@ -49,7 +49,7 @@ pub enum AppState {
     Combat,
     Dialogue { dialogue: Dialogue, current_node: String },
     QuestLobby { quests: Vec<QuestSummary> },
-    Inventory { scroll: usize, previous: Box<AppState> },
+    Inventory { scroll: usize, selected: usize, previous: Box<AppState> },
 }
 
 impl Default for AppState {
@@ -102,21 +102,41 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<()> {
         if matches!(&self.state, AppState::Inventory { .. }) {
-            if let AppState::Inventory { scroll, previous } =
+            if let AppState::Inventory { scroll, selected, previous } =
                 std::mem::replace(&mut self.state, AppState::Main)
             {
+                let item_count = self.inventory.len();
+                const PAGE: usize = 5;
                 match key_event.code {
                     KeyCode::Char('j') | KeyCode::Char('s') | KeyCode::Down => {
-                        self.state = AppState::Inventory { scroll: scroll.saturating_add(1), previous };
+                        let new_sel = (selected + 1).min(item_count.saturating_sub(1));
+                        let new_scroll = if new_sel >= scroll + PAGE { scroll + 1 } else { scroll };
+                        self.state = AppState::Inventory { scroll: new_scroll, selected: new_sel, previous };
                     }
                     KeyCode::Char('k') | KeyCode::Char('w') | KeyCode::Up => {
-                        self.state = AppState::Inventory { scroll: scroll.saturating_sub(1), previous };
+                        let new_sel = selected.saturating_sub(1);
+                        let new_scroll = if new_sel < scroll { scroll.saturating_sub(1) } else { scroll };
+                        self.state = AppState::Inventory { scroll: new_scroll, selected: new_sel, previous };
+                    }
+                    KeyCode::Enter => {
+                        let can_use = self.inventory.get(selected).map(|i| {
+                            match &i.item.effect {
+                                ItemEffect::Damage(_) => matches!(*previous, AppState::Combat),
+                                ItemEffect::Heal(_) | ItemEffect::FullHeal => true,
+                            }
+                        }).unwrap_or(false);
+                        if can_use {
+                            self.state = *previous;
+                            self.use_item(selected);
+                        } else {
+                            self.state = AppState::Inventory { scroll, selected, previous };
+                        }
                     }
                     KeyCode::Char('v') | KeyCode::Esc | KeyCode::Char('q') => {
                         self.state = *previous;
                     }
                     _ => {
-                        self.state = AppState::Inventory { scroll, previous };
+                        self.state = AppState::Inventory { scroll, selected, previous };
                     }
                 }
             }
@@ -288,7 +308,7 @@ impl App {
 
     fn open_inventory(&mut self) {
         let previous = std::mem::replace(&mut self.state, AppState::Main);
-        self.state = AppState::Inventory { scroll: 0, previous: Box::new(previous) };
+        self.state = AppState::Inventory { scroll: 0, selected: 0, previous: Box::new(previous) };
     }
 
     fn start_register_user(&mut self) {
@@ -714,16 +734,12 @@ impl App {
             }
         }
 
-        // consume one charge; remove from inventory if finite and exhausted
+        // consume one charge and re-sync from server
         if inv_item.item.charges != -1 {
             if let Some(user) = &self.active_user {
-                let _ = self.client.delete_character_item(user.id, inv_item.item.id);
-            }
-            if let Some(slot) = self.inventory.get_mut(index) {
-                slot.charges_remaining -= 1;
-                if slot.charges_remaining <= 0 {
-                    self.inventory.remove(index);
-                }
+                let uid = user.id;
+                let _ = self.client.delete_character_item(uid, inv_item.item.id);
+                self.inventory = self.client.get_character_items(uid).unwrap_or_default();
             }
         }
 
@@ -785,14 +801,15 @@ impl Widget for &App {
             AppState::QuestLobby { quests } => {
                 self.render_quest_lobby(parent_layout[1], buf, text_style, quests);
             }
-            AppState::Inventory { scroll, .. } => {
+            AppState::Inventory { scroll, selected, previous } => {
                 let popup_width = 60.min(area.width.saturating_sub(4));
                 let popup_height = 20.min(area.height.saturating_sub(4));
                 let popup_x = area.x + (area.width.saturating_sub(popup_width)) / 2;
                 let popup_y = area.y + (area.height.saturating_sub(popup_height)) / 2;
                 let rect = Rect::new(popup_x, popup_y, popup_width, popup_height);
                 Clear::default().render(rect, buf);
-                self.render_inventory_popup(rect, buf, text_style, *scroll);
+                let in_combat = matches!(**previous, AppState::Combat);
+                self.render_inventory_popup(rect, buf, text_style, *scroll, *selected, in_combat);
             }
             _ => {}
         }
