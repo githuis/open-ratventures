@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use ratback::{data::{CharacterWrapper, InventoryItem, User}, quest_data::{Dialogue, Quest, QuestSummary}};
+use ratback::{data::{CharacterWrapper, InventoryItem, ShopItem, User}, quest_data::{Dialogue, Quest, QuestSummary}};
 use reqwest::blocking::Client;
 
 const DEFAULT_HOST: &str = "http://localhost:3000/api/";
@@ -94,6 +94,11 @@ impl Rattp {
     pub fn post_give_item(&self, user_id: i32, item_name: &str) -> Result<(), Box<dyn Error>> {
         self.http.post(self.destination(&format!("character/{user_id}/items"))).json(item_name).send()?;
         Ok(())
+    }
+
+    pub fn get_shop_items(&self) -> Result<Vec<ShopItem>, Box<dyn Error>> {
+        let response = self.http.get(self.destination("shop")).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
     }
 
     pub fn get_character_items(&self, user_id: i32) -> Result<Vec<InventoryItem>, Box<dyn Error>> {

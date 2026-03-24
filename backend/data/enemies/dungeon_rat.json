@@ -3,7 +3,7 @@
   "unit": { "id": 0, "ref_id": 0, "health": 8, "max_health": 8, "energy": 5, "max_energy": 5 },
   "attack": 2,
   "items": [
-    { "id": 0, "name": "Gnaw",        "description": "Bites with yellowed teeth.",        "effect": { "Damage": 4 }, "charges": -1 },
-    { "id": 0, "name": "Plague Bite", "description": "A diseased bite that festers.",     "effect": { "Damage": 7 }, "charges": 2  }
+    { "id": 0, "name": "Gnaw",        "description": "Bites with yellowed teeth.",        "effect": { "Damage": 1 }, "charges": -1 },
+    { "id": 0, "name": "Plague Bite", "description": "A diseased bite that festers.",     "effect": { "Damage": 2 }, "charges": 2  }
   ]
 }

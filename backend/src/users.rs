@@ -1,6 +1,6 @@
 use axum::{Extension, Json, Router, extract::Path, http::StatusCode, routing::{delete, get, post, put}};
 
-use crate::data::{CharacterWrapper, InventoryItem, Unit};
+use crate::data::{CharacterWrapper, InventoryItem, ShopItem, Unit};
 use crate::db::DbConnection;
 
 pub fn routes() -> Router {
@@ -10,6 +10,7 @@ pub fn routes() -> Router {
         .route("/character/{user_id}/unit", put(update_unit))
         .route("/character/{user_id}/items", get(get_items).post(give_item))
         .route("/character/{user_id}/items/{item_id}", delete(consume_item))
+        .route("/shop", get(list_shop))
 }
 
 async fn create_character(
@@ -56,6 +57,12 @@ async fn get_items(
         .await
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn list_shop(
+    Extension(db): Extension<DbConnection>,
+) -> Result<Json<Vec<ShopItem>>, StatusCode> {
+    db.list_shop_items().await.map(Json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 async fn consume_item(

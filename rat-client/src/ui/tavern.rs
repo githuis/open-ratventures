@@ -70,9 +70,11 @@ impl App {
                     .wrap(Wrap { trim: false })
                     .render(area, buf);
             }
-            TavernState::Shop => {
+            TavernState::Shop { items, selected, scroll } => {
+                const PAGE: usize = 5;
                 let coins = self.active_character.as_ref().map(|c| c.character.coins).unwrap_or(0);
-                let can_afford = coins >= 5;
+                let dim = Style::default().fg(C_ACCENT);
+                let selected_bg = Style::default().bg(C_ACCENT).fg(ratatui::style::Color::White);
 
                 let block = Block::default()
                     .title(Line::from(" Barkeep's Wares ".bold()))
@@ -81,32 +83,50 @@ impl App {
                     .border_style(Style::default().fg(C_ACCENT))
                     .bg(C_PANEL);
 
-                let gem_line = if can_afford {
-                    Line::from(vec![
-                        "  ".into(),
-                        Span::styled("[1]", text_style),
-                        "  Gem of Resurrection — restore full health  ".into(),
-                        Span::styled("(5 gold)", Style::default().fg(C_ALERT)),
-                    ])
-                } else {
-                    Line::from(Span::styled(
-                        "  [1]  Gem of Resurrection — restore full health  (5 gold)  [not enough gold]",
-                        Style::default().fg(C_ACCENT),
-                    ))
-                };
-
-                let lines = vec![
+                let mut lines = vec![
                     Line::from(""),
                     Line::from(Span::styled("  \"What'll it be, traveller?\"", text_style)),
                     Line::from(""),
-                    gem_line,
-                    Line::from(""),
-                    Line::from(vec![
-                        "  ".into(),
-                        Span::styled("[Esc]", text_style),
-                        "  Back to the tavern".into(),
-                    ]),
                 ];
+
+                let visible: Vec<_> = items.iter().skip(*scroll).take(PAGE).collect();
+                for (i, entry) in visible.iter().enumerate() {
+                    let abs = scroll + i;
+                    let can_afford = coins >= entry.cost as u32;
+                    let is_selected = abs == *selected;
+                    let cursor = if is_selected { "▶ " } else { "  " };
+                    if can_afford {
+                        let style = if is_selected { selected_bg } else { text_style };
+                        lines.push(Line::from(vec![
+                            Span::styled(format!("{}{}", cursor, entry.item.name), style),
+                            Span::styled(format!("  {} gold", entry.cost), Style::default().fg(C_ALERT)),
+                        ]));
+                    } else {
+                        lines.push(Line::from(Span::styled(
+                            format!("{}{}  {} gold  [not enough gold]", cursor, entry.item.name, entry.cost),
+                            dim,
+                        )));
+                    }
+                    lines.push(Line::from(Span::styled(
+                        format!("    {}", entry.item.description),
+                        dim,
+                    )));
+                }
+
+                if items.is_empty() {
+                    lines.push(Line::from(Span::styled("  The shelves are bare.", dim)));
+                }
+
+                lines.push(Line::from(""));
+                lines.push(Line::from(vec![
+                    "  ".into(),
+                    Span::styled("[↑/↓]", text_style),
+                    " Navigate  ".into(),
+                    Span::styled("[Enter]", text_style),
+                    " Buy  ".into(),
+                    Span::styled("[Esc]", text_style),
+                    " Back".into(),
+                ]));
 
                 Paragraph::new(lines)
                     .block(block)

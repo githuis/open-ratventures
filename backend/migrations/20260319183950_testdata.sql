@@ -11,4 +11,4 @@ VALUES (1, 0, 0);
 
 -- Unit for admin's character
 INSERT INTO units (ref_id, health, energy, max_health, max_energy)
-VALUES (1, 10, 15, 10, 15);
+VALUES (1, 50, 15, 50, 15);

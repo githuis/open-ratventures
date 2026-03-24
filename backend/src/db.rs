@@ -7,7 +7,7 @@ use sqlx::{
 };
 
 use crate::data::{
-    Character, CharacterWrapper, InventoryItem, Item, ItemEffect, Unit, User, random_fantasy_name,
+    Character, CharacterWrapper, InventoryItem, Item, ItemEffect, ShopItem, Unit, User, random_fantasy_name,
 };
 use crate::quest_data::{Encounter, Quest, QuestSummary};
 
@@ -112,6 +112,66 @@ impl DbConnection {
                 .fetch_one(&self.pool)
                 .await?,
         )
+    }
+
+    pub async fn list_shop_items(&self) -> Result<Vec<ShopItem>> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: i32,
+            name: String,
+            description: String,
+            effect_type: String,
+            effect_value: i32,
+            charges: i32,
+            cost: i32,
+            stock: Option<i32>,
+        }
+        let rows = sqlx::query_as::<_, Row>(
+            "SELECT i.id, i.name, i.description, i.effect_type, i.effect_value, i.charges,
+                    s.cost, s.stock
+             FROM shop_items s JOIN items i ON s.item_id = i.id ORDER BY s.id",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|r| {
+            let effect = match r.effect_type.as_str() {
+                "heal"      => ItemEffect::Heal(r.effect_value),
+                "full_heal" => ItemEffect::FullHeal,
+                _           => ItemEffect::Damage(r.effect_value),
+            };
+            ShopItem {
+                item: Item { id: r.id, name: r.name, description: r.description, effect, charges: r.charges },
+                cost: r.cost,
+                stock: r.stock,
+            }
+        }).collect())
+    }
+
+    pub async fn list_items(&self) -> Result<Vec<Item>> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: i32,
+            name: String,
+            description: String,
+            effect_type: String,
+            effect_value: i32,
+            charges: i32,
+        }
+        let rows = sqlx::query_as::<_, Row>(
+            "SELECT id, name, description, effect_type, effect_value, charges FROM items ORDER BY id",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|r| {
+            let effect = match r.effect_type.as_str() {
+                "heal"      => ItemEffect::Heal(r.effect_value),
+                "full_heal" => ItemEffect::FullHeal,
+                _           => ItemEffect::Damage(r.effect_value),
+            };
+            Item { id: r.id, name: r.name, description: r.description, effect, charges: r.charges }
+        }).collect())
     }
 
     pub async fn get_character_items(&self, user_id: i32) -> Result<Vec<InventoryItem>> {

@@ -4,9 +4,9 @@ DROP TABLE IF EXISTS items;
 CREATE TABLE items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    effect_type TEXT NOT NULL,
-    effect_value INTEGER NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    effect_type TEXT NOT NULL DEFAULT 'damage',
+    effect_value INTEGER NOT NULL DEFAULT 0,
     consumable INTEGER NOT NULL DEFAULT 1
 );
 

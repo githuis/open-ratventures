@@ -87,6 +87,13 @@ pub struct Item {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShopItem {
+    pub item: Item,
+    pub cost: i32,
+    pub stock: Option<i32>, // None = unlimited
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InventoryItem {
     pub item: Item,
     pub charges_remaining: i32, // -1 = infinite
@@ -106,6 +113,11 @@ impl Unit {
 }
 
 impl Character {
+    /// Level 1 = 0–49 exp, +1 per 50 exp after that.
+    pub fn level(&self) -> u32 {
+        self.experience / 50 + 1
+    }
+
     pub fn new(user_id: &i32) -> Character {
         let id_value = 0;
         Character {

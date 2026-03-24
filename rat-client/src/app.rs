@@ -35,7 +35,7 @@ pub struct App {
 pub enum TavernState {
     #[default]
     Main,
-    Shop,
+    Shop { items: Vec<ratback::data::ShopItem>, selected: usize, scroll: usize },
 }
 
 #[derive(Debug)]
@@ -133,7 +133,10 @@ impl App {
             AppState::Tavern(TavernState::Main) => {
                 let has_char = self.active_character.is_some();
                 match key_event.code {
-                    KeyCode::Char('s') if has_char => self.state = AppState::Tavern(TavernState::Shop),
+                    KeyCode::Char('s') if has_char => {
+                        let items = self.client.get_shop_items().unwrap_or_default();
+                        self.state = AppState::Tavern(TavernState::Shop { items, selected: 0, scroll: 0 });
+                    }
                     KeyCode::Char('a') if has_char => self.start_quest(),
                     KeyCode::Char('o') | KeyCode::Char('r') if has_char => self.start_register_user(),
                     KeyCode::Char('v') => self.open_inventory(),
@@ -142,11 +145,41 @@ impl App {
                 }
             }
 
-            AppState::Tavern(TavernState::Shop) => match key_event.code {
-                KeyCode::Char('1') => self.tavern_buy_item("Gem of Resurrection", 5),
-                KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Main),
-                _ => {}
-            },
+            AppState::Tavern(TavernState::Shop { .. }) => {
+                let (selected, scroll, item_count) =
+                    if let AppState::Tavern(TavernState::Shop { selected, scroll, items }) = &self.state {
+                        (*selected, *scroll, items.len())
+                    } else { unreachable!() };
+
+                const PAGE: usize = 5;
+                match key_event.code {
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        let new_sel = (selected + 1).min(item_count.saturating_sub(1));
+                        let new_scroll = if new_sel >= scroll + PAGE { scroll + 1 } else { scroll };
+                        if let AppState::Tavern(TavernState::Shop { selected: s, scroll: sc, .. }) = &mut self.state {
+                            *s = new_sel; *sc = new_scroll;
+                        }
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        let new_sel = selected.saturating_sub(1);
+                        let new_scroll = if new_sel < scroll { scroll.saturating_sub(1) } else { scroll };
+                        if let AppState::Tavern(TavernState::Shop { selected: s, scroll: sc, .. }) = &mut self.state {
+                            *s = new_sel; *sc = new_scroll;
+                        }
+                    }
+                    KeyCode::Enter => {
+                        let (name, cost) =
+                            if let AppState::Tavern(TavernState::Shop { items, .. }) = &self.state {
+                                items.get(selected).map(|i| (i.item.name.clone(), i.cost as u32))
+                            } else { None }.unwrap_or_default();
+                        if !name.is_empty() { self.tavern_buy_item(&name, cost); }
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        self.state = AppState::Tavern(TavernState::Main);
+                    }
+                    _ => {}
+                }
+            }
 
             AppState::TextInput(_) => match key_event.code {
                 KeyCode::Enter => self.finish_register_user(),

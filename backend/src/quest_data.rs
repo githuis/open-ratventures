@@ -11,6 +11,13 @@ pub struct Monster {
     pub items: Vec<Item>,
 }
 
+impl Monster {
+    /// Level 1 = 1–15 hp, +1 per 15 hp after that.
+    pub fn level(&self) -> u32 {
+        (self.unit.max_health as u32 + 14) / 15
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Combat {
     pub monsters: Vec<Monster>,
