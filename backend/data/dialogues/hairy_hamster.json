@@ -1,0 +1,48 @@
+{
+  "id": "hairy_hamster",
+  "start": "greeting",
+  "nodes": {
+    "greeting": {
+      "text": "A large hamster — almost your height, wearing a tiny apron — crouches over a bubbling pot, stirring with a wooden spoon clenched in both paws. Its fur is wild and matted, sticking out in every direction. It looks up at you with round black eyes. 'Warm stew, yes yes,' it squeaks. 'Secret recipe. Very old. Very hairy. Few coins and a bowl is yours.'",
+      "choices": [
+        {
+          "text": "Hand over some coins for a bowl.",
+          "next": "eat",
+          "outcome": null
+        },
+        {
+          "text": "No thanks, we'll move on.",
+          "next": "decline",
+          "outcome": null
+        }
+      ]
+    },
+    "eat": {
+      "text": "The hamster beams and ladles out a generous bowl with both stubby paws. It smells of root vegetables, herbs, and just faintly of sawdust. You choose not to investigate further. It's warm, it's filling, and somehow you feel better for it.",
+      "choices": [
+        {
+          "text": "Move on.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": -3,
+              "renown": 0,
+              "heal": 10
+            }
+          }
+        }
+      ]
+    },
+    "decline": {
+      "text": "The hamster stuffs both cheeks with a spoonful from the pot, then turns back to stirring without a word. The smell of stew follows you down the corridor.",
+      "choices": [
+        {
+          "text": "Move on.",
+          "next": null,
+          "outcome": null
+        }
+      ]
+    }
+  },
+  "required_renown": 0
+}

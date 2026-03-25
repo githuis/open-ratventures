@@ -5,15 +5,37 @@
     "discovery": {
       "text": "Tucked in a crevice in the wall is a wedge of cheese. It is aged. Aggressively. The smell hits you like a physical object. Someone in the party makes a noise.",
       "choices": [
-        { "text": "Eat it.", "next": "ate_it", "outcome": null },
-        { "text": "Leave it. Keep moving.", "next": null, "outcome": { "Reward": { "coins": 0, "experience": 5 } } }
+        {
+          "text": "Eat it.",
+          "next": "ate_it",
+          "outcome": null
+        },
+        {
+          "text": "Leave it. Keep moving.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 5
+            }
+          }
+        }
       ]
     },
     "ate_it": {
       "text": "You eat the cheese. It tastes exactly like it smells. Your vision swims briefly. Worth it? Unclear.",
       "choices": [
-        { "text": "Regroup and move on.", "next": null, "outcome": { "Damage": { "amount": 10 } } }
+        {
+          "text": "Regroup and move on.",
+          "next": null,
+          "outcome": {
+            "Damage": {
+              "amount": 10
+            }
+          }
+        }
       ]
     }
-  }
+  },
+  "required_renown": 0
 }

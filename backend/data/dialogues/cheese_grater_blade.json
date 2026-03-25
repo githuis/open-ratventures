@@ -23,9 +23,15 @@
         {
           "text": "Onwards.",
           "next": null,
-          "outcome": { "GiveItem": { "item_name": "Cheese Grater Blade", "cost": 0 } }
+          "outcome": {
+            "GiveItem": {
+              "item_name": "Cheese Grater Blade",
+              "cost": 0
+            }
+          }
         }
       ]
     }
-  }
+  },
+  "required_renown": 2
 }

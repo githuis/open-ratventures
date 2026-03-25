@@ -3,12 +3,17 @@
   "start": "start",
   "nodes": {
     "start": {
-      "text": "Propped against the wall like it was left there on purpose sits a large bone — a femur, by the look of it. Whatever chewed the end down to a splintered point was big. Very big. You notice fresh teeth marks. You look around. Nothing. Just the bone.",
+      "text": "Propped against the wall like it was left there on purpose sits a large bone \u00e2\u20ac\u201d a femur, by the look of it. Whatever chewed the end down to a splintered point was big. Very big. You notice fresh teeth marks. You look around. Nothing. Just the bone.",
       "choices": [
         {
           "text": "Grab the bone. Don't ask where it's from.",
           "next": null,
-          "outcome": { "GiveItem": { "item_name": "Gnawed Bone Club", "cost": 0 } }
+          "outcome": {
+            "GiveItem": {
+              "item_name": "Gnawed Bone Club",
+              "cost": 0
+            }
+          }
         },
         {
           "text": "Back away slowly.",
@@ -17,5 +22,6 @@
         }
       ]
     }
-  }
+  },
+  "required_renown": 2
 }

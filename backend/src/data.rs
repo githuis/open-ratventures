@@ -50,7 +50,7 @@ pub struct Character {
     pub id: i32,
     pub user_id: i32,
     pub name: String,
-    pub experience: u32,
+    pub renown: u32,
     pub coins: u32,
 }
 
@@ -115,7 +115,7 @@ impl Unit {
 impl Character {
     /// Level 1 = 0–49 exp, +1 per 50 exp after that.
     pub fn level(&self) -> u32 {
-        self.experience / 50 + 1
+        self.renown / 50 + 1
     }
 
     pub fn new(user_id: &i32) -> Character {
@@ -124,7 +124,7 @@ impl Character {
             id: id_value,
             user_id: *user_id,
             name: String::new(),
-            experience: 0,
+            renown: 0,
             coins: 0,
         }
     }

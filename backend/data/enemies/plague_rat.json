@@ -1,9 +1,33 @@
 {
   "name": "Plague Rat",
-  "unit": { "id": 0, "ref_id": 0, "health": 10, "max_health": 10, "energy": 7, "max_energy": 7 },
+  "unit": {
+    "id": 0,
+    "ref_id": 0,
+    "health": 10,
+    "max_health": 10,
+    "energy": 7,
+    "max_energy": 7
+  },
   "attack": 3,
   "items": [
-    { "id": 0, "name": "Festering Bite", "description": "Leaves a wound that won't close.", "effect": { "Damage": 1 }, "charges": -1 },
-    { "id": 0, "name": "Diseased Spray", "description": "Exhales a foul mist.",             "effect": { "Damage": 4 }, "charges": 1  }
-  ]
+    {
+      "id": 0,
+      "name": "Festering Bite",
+      "description": "Leaves a wound that won't close.",
+      "effect": {
+        "Damage": 1
+      },
+      "charges": -1
+    },
+    {
+      "id": 0,
+      "name": "Diseased Spray",
+      "description": "Exhales a foul mist.",
+      "effect": {
+        "Damage": 4
+      },
+      "charges": 1
+    }
+  ],
+  "required_renown": 1
 }

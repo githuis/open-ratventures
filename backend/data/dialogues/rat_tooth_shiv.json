@@ -3,12 +3,17 @@
   "start": "start",
   "nodes": {
     "start": {
-      "text": "Wedged between two stones on the dungeon floor, you spot something gleaming. On closer inspection it's a rat's fang — enormous, cracked down the middle, lashed to a stick with what looks like intestine string. Crude. Revolting. Probably effective.",
+      "text": "Wedged between two stones on the dungeon floor, you spot something gleaming. On closer inspection it's a rat's fang \u00e2\u20ac\u201d enormous, cracked down the middle, lashed to a stick with what looks like intestine string. Crude. Revolting. Probably effective.",
       "choices": [
         {
           "text": "Pocket the shiv.",
           "next": null,
-          "outcome": { "GiveItem": { "item_name": "Rat Tooth Shiv", "cost": 0 } }
+          "outcome": {
+            "GiveItem": {
+              "item_name": "Rat Tooth Shiv",
+              "cost": 0
+            }
+          }
         },
         {
           "text": "Leave it. You have standards.",
@@ -17,5 +22,6 @@
         }
       ]
     }
-  }
+  },
+  "required_renown": 0
 }

@@ -563,10 +563,10 @@ impl App {
     fn apply_dialogue_outcome(&mut self, outcome: DialogueOutcome) {
         self.state = AppState::Tavern(TavernState::Main);
         match outcome {
-            DialogueOutcome::Reward { coins, experience, heal } => {
+            DialogueOutcome::Reward { coins, renown, heal } => {
                 if let Some(c) = self.active_character.as_mut() {
                     c.character.coins = (c.character.coins as i32 + coins).max(0) as u32;
-                    c.character.experience = (c.character.experience as i32 + experience).max(0) as u32;
+                    c.character.renown = (c.character.renown as i32 + renown).max(0) as u32;
                     if heal != 0 {
                         c.unit.health = (c.unit.health + heal).clamp(0, c.unit.max_health);
                     }

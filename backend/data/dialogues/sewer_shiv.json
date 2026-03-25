@@ -23,9 +23,15 @@
         {
           "text": "Move on.",
           "next": null,
-          "outcome": { "GiveItem": { "item_name": "Sewer Shiv", "cost": 0 } }
+          "outcome": {
+            "GiveItem": {
+              "item_name": "Sewer Shiv",
+              "cost": 0
+            }
+          }
         }
       ]
     }
-  }
+  },
+  "required_renown": 1
 }

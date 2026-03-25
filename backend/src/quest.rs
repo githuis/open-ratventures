@@ -35,8 +35,10 @@ async fn init_quest(
     if let Some(existing) = db.get_quest_for_user(user_id).await {
         return Json(existing);
     }
-    let ids: Vec<String> = dialogues.keys().cloned().collect();
-    let quest = db.new_quest(make_encounters(&ids, &enemies), user_id).await.unwrap();
+    let party_renown = db.get_character(user_id.to_string()).await
+        .map(|c| c.character.renown)
+        .unwrap_or(0);
+    let quest = db.new_quest(make_encounters(&dialogues, &enemies, party_renown), user_id).await.unwrap();
     Json(quest)
 }
 
@@ -95,26 +97,35 @@ async fn get_dialogue(
     dialogues.get(&id).cloned().map(Json).ok_or(StatusCode::NOT_FOUND)
 }
 
-fn make_encounters(dialogue_ids: &[String], enemies: &[Monster]) -> Vec<Encounter> {
+fn make_encounters(dialogues: &HashMap<String, Dialogue>, enemies: &[Monster], party_renown: u32) -> Vec<Encounter> {
+    let eligible_enemies: Vec<&Monster> = enemies.iter()
+        .filter(|e| e.required_renown <= party_renown)
+        .collect();
+    let eligible_dialogues: Vec<&str> = dialogues.values()
+        .filter(|d| d.required_renown <= party_renown)
+        .map(|d| d.id.as_str())
+        .collect();
+
     let mut rng = rand::thread_rng();
     (0..MAX_ENCOUNTER_LENGTH).map(|i| {
-        if i % 2 == 0 && !enemies.is_empty() {
+        if i % 2 == 0 && !eligible_enemies.is_empty() {
             let count = rng.gen_range(1..=3usize);
             let monsters = (0..count)
                 .map(|_| {
-                    let template = &enemies[rng.gen_range(0..enemies.len())];
+                    let t = eligible_enemies[rng.gen_range(0..eligible_enemies.len())];
                     Monster {
-                        unit: template.unit,
-                        name: template.name.clone(),
-                        attack: template.attack,
-                        items: template.items.clone(),
+                        unit: t.unit,
+                        name: t.name.clone(),
+                        attack: t.attack,
+                        items: t.items.clone(),
+                        required_renown: t.required_renown,
                     }
                 })
                 .collect();
             Encounter::CombatEncounter(Combat { monsters, turn: 0 })
-        } else if !dialogue_ids.is_empty() {
-            let idx = rng.gen_range(0..dialogue_ids.len());
-            Encounter::NpcEncounter(dialogue_ids[idx].clone())
+        } else if !eligible_dialogues.is_empty() {
+            let idx = rng.gen_range(0..eligible_dialogues.len());
+            Encounter::NpcEncounter(eligible_dialogues[idx].to_string())
         } else {
             Encounter::EmptyEncounter
         }

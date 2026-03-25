@@ -91,7 +91,7 @@ impl DbConnection {
     async fn create_character(&self, user_id: i32) -> Result<Character> {
         let name = random_fantasy_name();
         let char_id = sqlx::query(
-            "INSERT INTO characters (user_id, name, experience, coins) VALUES ($1, $2, 0, 0)",
+            "INSERT INTO characters (user_id, name, renown, coins) VALUES ($1, $2, 0, 0)",
         )
         .bind(user_id)
         .bind(name)
@@ -454,9 +454,9 @@ impl DbConnection {
             .execute(&self.pool)
             .await?;
 
-        // Reward all members of the quest
+        // Reward all members: +1 renown, +5 coins
         sqlx::query(
-            "UPDATE characters SET experience = experience + 15, coins = coins + 5
+            "UPDATE characters SET renown = renown + 1, coins = coins + 5
              WHERE id IN (SELECT character_id FROM quest_members WHERE quest_id = $1)",
         )
         .bind(quest_id)

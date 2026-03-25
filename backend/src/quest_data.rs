@@ -9,6 +9,8 @@ pub struct Monster {
     pub name: String,
     pub attack: i32,
     pub items: Vec<Item>,
+    #[serde(default)]
+    pub required_renown: u32,
 }
 
 impl Monster {
@@ -48,6 +50,8 @@ pub struct Dialogue {
     pub id: String,
     pub start: String,
     pub nodes: HashMap<String, DialogueNode>,
+    #[serde(default)]
+    pub required_renown: u32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -65,7 +69,7 @@ pub struct DialogueChoice {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DialogueOutcome {
-    Reward { coins: i32, experience: i32, #[serde(default)] heal: i32 },
+    Reward { coins: i32, renown: i32, #[serde(default)] heal: i32 },
     Damage { amount: i32 },
     Combat(Combat),
     GiveItem { item_name: String, cost: i32 },

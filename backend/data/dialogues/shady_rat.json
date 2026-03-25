@@ -5,35 +5,102 @@
     "greeting": {
       "text": "A hooded rat eyes you from beneath a tattered cloak. 'Well, well... what do we have here? Lost, are we?'",
       "choices": [
-        { "text": "I'm looking for trouble.", "next": "threaten", "outcome": null },
-        { "text": "Just passing through.", "next": "neutral", "outcome": null },
-        { "text": "Do you have anything to trade?", "next": "trade", "outcome": null }
+        {
+          "text": "I'm looking for trouble.",
+          "next": "threaten",
+          "outcome": null
+        },
+        {
+          "text": "Just passing through.",
+          "next": "neutral",
+          "outcome": null
+        },
+        {
+          "text": "Do you have anything to trade?",
+          "next": "trade",
+          "outcome": null
+        }
       ]
     },
     "threaten": {
       "text": "The rat bares his teeth. 'You found it.' He lunges!",
       "choices": [
-        { "text": "Brace for combat!", "next": null, "outcome": { "Combat": { "monsters": [{ "unit": { "id": 0, "ref_id": 0, "health": 50, "energy": 30, "max_health": 50, "max_energy": 30 }, "name": "Hooded Rat", "attack": 5, "items": [] }], "turn": 0 } } }
+        {
+          "text": "Brace for combat!",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 50,
+                    "energy": 30,
+                    "max_health": 50,
+                    "max_energy": 30
+                  },
+                  "name": "Hooded Rat",
+                  "attack": 5,
+                  "items": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
       ]
     },
     "neutral": {
       "text": "'Sure you are.' He tosses you a coin. 'Buy yourself something better than that excuse.'",
       "choices": [
-        { "text": "Take the coin and leave.", "next": null, "outcome": { "Reward": { "coins": 1, "experience": 0 } } }
+        {
+          "text": "Take the coin and leave.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 1,
+              "renown": 0
+            }
+          }
+        }
       ]
     },
     "trade": {
       "text": "He scratches his chin. 'Information costs. But I'll let you have this one free.' He slips you a pouch.",
       "choices": [
-        { "text": "Take the pouch.", "next": null, "outcome": { "Reward": { "coins": 3, "experience": 2 } } },
-        { "text": "Refuse. Something feels wrong.", "next": "refuse", "outcome": null }
+        {
+          "text": "Take the pouch.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 3,
+              "renown": 2
+            }
+          }
+        },
+        {
+          "text": "Refuse. Something feels wrong.",
+          "next": "refuse",
+          "outcome": null
+        }
       ]
     },
     "refuse": {
       "text": "'Smart.' He almost sounds impressed. 'Get out of here before I change my mind.'",
       "choices": [
-        { "text": "Leave.", "next": null, "outcome": { "Reward": { "coins": 0, "experience": 5 } } }
+        {
+          "text": "Leave.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 5
+            }
+          }
+        }
       ]
     }
-  }
+  },
+  "required_renown": 0
 }

@@ -57,8 +57,8 @@ impl App {
                 Span::styled(c.character.coins.to_string(), text_style),
             ]));
             lines.push(Line::from(vec![
-                "Exp:   ".into(),
-                Span::styled(c.character.experience.to_string(), text_style),
+                "Renown:".into(),
+                Span::styled(c.character.renown.to_string(), text_style),
             ]));
         }
 
