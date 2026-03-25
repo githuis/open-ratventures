@@ -54,11 +54,11 @@ impl App {
         }
 
         lines.push(Line::from(""));
-        if let Some(dmg) = self.last_combat_damage {
+        if let Some((dmg, target)) = &self.last_combat_damage {
             lines.push(Line::from(vec![
                 " Monsters dealt ".into(),
                 Span::styled(dmg.to_string(), Style::default().fg(C_ALERT).add_modifier(Modifier::BOLD)),
-                " damage!".into(),
+                format!(" damage to {}!", target).into(),
             ]));
         }
         lines.push(Line::from(vec![

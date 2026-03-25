@@ -28,7 +28,7 @@ pub struct App {
     pub party_members: Vec<CharacterWrapper>,
     pub text_input: Option<String>,
     pub client: Rattp,
-    pub last_combat_damage: Option<i32>,
+    pub last_combat_damage: Option<(i32, String)>,
     pub inventory: Vec<InventoryItem>,
 }
 
@@ -745,7 +745,8 @@ impl App {
                     })
                     .sum()
             };
-            self.last_combat_damage = Some(monster_damage);
+            let target_name = self.active_character.as_ref().map(|c| c.character.name.clone()).unwrap_or_default();
+            self.last_combat_damage = Some((monster_damage, target_name));
             if let Some(c) = self.active_character.as_mut() {
                 c.unit.health = (c.unit.health - monster_damage).max(0);
             }
