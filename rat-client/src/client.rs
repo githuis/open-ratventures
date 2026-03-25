@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use ratback::{data::{CharacterWrapper, InventoryItem, ShopItem, User}, quest_data::{Dialogue, Quest, QuestSummary}};
+use ratback::{data::{CharacterWrapper, InventoryItem, ShopItem, User}, quest_data::{Dialogue, Party, PartySummary, Quest, QuestSummary}};
 use reqwest::blocking::Client;
 
 const DEFAULT_HOST: &str = "http://localhost:3000/api/";
@@ -114,6 +114,42 @@ impl Rattp {
     pub fn update_character_unit(&self, user_id: i32, unit: &ratback::data::Unit) -> Result<(), Box<dyn Error>> {
         self.http.put(self.destination(&format!("character/{user_id}/unit"))).json(unit).send()?;
         Ok(())
+    }
+
+    pub fn post_create_party(&self, user_id: i32) -> Result<Party, Box<dyn Error>> {
+        let response = self.http.post(self.destination("party")).json(&user_id).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn get_open_parties(&self) -> Result<Vec<PartySummary>, Box<dyn Error>> {
+        let response = self.http.get(self.destination("party/open")).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn post_join_party(&self, party_id: i32, user_id: i32) -> Result<Party, Box<dyn Error>> {
+        let body = serde_json::json!({ "party_id": party_id, "user_id": user_id });
+        let response = self.http.post(self.destination("party/join")).json(&body).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn delete_leave_party(&self, user_id: i32) -> Result<(), Box<dyn Error>> {
+        self.http.delete(self.destination("party/leave")).json(&user_id).send()?;
+        Ok(())
+    }
+
+    pub fn get_party_for_user(&self, user_id: i32) -> Result<Party, Box<dyn Error>> {
+        let response = self.http.get(self.destination(&format!("party/active/{user_id}"))).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn get_party_members_for_party(&self, party_id: i32) -> Result<Vec<CharacterWrapper>, Box<dyn Error>> {
+        let response = self.http.get(self.destination(&format!("party/{party_id}/members"))).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub fn get_active_quest_for_user(&self, user_id: i32) -> Result<Quest, Box<dyn Error>> {
+        let response = self.http.get(self.destination(&format!("quest/active/{user_id}"))).send()?.text()?;
+        Ok(serde_json::from_str(&response)?)
     }
 
     pub(crate) fn post_new_quest(&self, user_id: i32) -> Result<Quest, Box<dyn Error>> {

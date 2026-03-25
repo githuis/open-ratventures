@@ -6,28 +6,28 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
-use ratback::quest_data::QuestSummary;
+use ratback::quest_data::PartySummary;
 
 use crate::app::App;
 use crate::ui::{C_ACCENT, C_PANEL};
 
 impl App {
-    pub(crate) fn render_quest_lobby(&self, area: Rect, buf: &mut Buffer, text_style: Style, quests: &[QuestSummary]) {
+    pub(crate) fn render_party_lobby(&self, area: Rect, buf: &mut Buffer, text_style: Style, parties: &[PartySummary]) {
         let block = Block::default()
-            .title(Line::from(" Quest Lobby ".bold()))
+            .title(Line::from(" Find a Party ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
             .border_style(Style::default().fg(C_ACCENT));
 
-        let mut lines = vec![Line::from(""), Line::from(" Open quests:".bold()), Line::from("")];
+        let mut lines = vec![Line::from(""), Line::from(" Open parties:".bold()), Line::from("")];
 
-        if quests.is_empty() {
-            lines.push(Line::from("  No open quests."));
+        if parties.is_empty() {
+            lines.push(Line::from("  No open parties."));
         } else {
-            for (i, q) in quests.iter().enumerate() {
+            for (i, p) in parties.iter().enumerate() {
                 lines.push(Line::from(vec![
                     Span::styled(format!(" [{}] ", i + 1), text_style),
-                    format!("Quest #{} — {} member(s)", q.id, q.member_count).into(),
+                    format!("Party #{} — {} member(s)", p.id, p.member_count).into(),
                 ]));
             }
         }
@@ -35,7 +35,7 @@ impl App {
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
             Span::styled(" [N] ", text_style),
-            "Create new quest".into(),
+            "Create new party".into(),
         ]));
         lines.push(Line::from(vec![
             Span::styled(" [R] ", text_style),
@@ -43,7 +43,7 @@ impl App {
         ]));
         lines.push(Line::from(vec![
             Span::styled(" [Esc] ", text_style),
-            "Cancel".into(),
+            "Back".into(),
         ]));
 
         Paragraph::new(lines)

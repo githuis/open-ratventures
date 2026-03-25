@@ -14,8 +14,7 @@ fn main() -> Result<()> {
 
     if let Err(err) = tui::restore() {
         eprintln!(
-            "failed to restore terminal. Run `reset` or restart your terminal to recover: {err}"
-        );
+            "failed to restore terminal. Run `reset` or restart your terminal to recover: {err}");
     }
     app_result
 }

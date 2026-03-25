@@ -9,7 +9,7 @@ use sqlx::{
 use crate::data::{
     Character, CharacterWrapper, InventoryItem, Item, ItemEffect, ShopItem, Unit, User, random_fantasy_name,
 };
-use crate::quest_data::{Encounter, Quest, QuestSummary};
+use crate::quest_data::{Encounter, Party, PartySummary, Quest, QuestSummary};
 
 #[derive(Clone)]
 pub struct DbConnection {
@@ -26,12 +26,16 @@ impl DbConnection {
         sqlx::migrate!("./migrations").run(&pool).await?;
         println!("Finished running migrating db");
 
-        // On startup, wipe in-progress quests so lobbies start clean each session
-        sqlx::query("DELETE FROM quests WHERE status = 'active'")
-            .execute(&pool)
-            .await?;
+        let db = Self { pool };
+        db.reset_db_state().await?;
+        Ok(db)
+    }
 
-        Ok(Self { pool })
+    async fn reset_db_state(&self) -> Result<(), Box<dyn std::error::Error>> {
+        sqlx::query("DELETE FROM quests WHERE status = 'active'").execute(&self.pool).await?;
+        sqlx::query("DELETE FROM party_members").execute(&self.pool).await?;
+        sqlx::query("DELETE FROM parties").execute(&self.pool).await?;
+        Ok(())
     }
 
     //pub fn persist_user(&self, user: &User) -> Result<User, Box<dyn Error>> {
@@ -392,17 +396,37 @@ impl DbConnection {
 
     pub async fn new_quest(&self, encounters: Vec<Encounter>, user_id: i32) -> Result<Quest> {
         let encounters_json = serde_json::to_string(&encounters)?;
-        let id =
+        let quest_id =
             sqlx::query("INSERT INTO quests (current_encounter, encounters_json) VALUES (0, $1)")
                 .bind(&encounters_json)
                 .execute(&self.pool)
                 .await?
-                .last_insert_rowid();
+                .last_insert_rowid() as i32;
 
-        self.join_quest(id as i32, user_id).await?;
+        // Add all party members, or just the creator if not in a party
+        let party = self.get_party_for_user(user_id).await;
+        if let Some(p) = party {
+            let char_ids: Vec<i32> =
+                sqlx::query_scalar("SELECT character_id FROM party_members WHERE party_id = $1")
+                    .bind(p.id)
+                    .fetch_all(&self.pool)
+                    .await?;
+            for (slot, char_id) in char_ids.into_iter().enumerate() {
+                sqlx::query(
+                    "INSERT OR IGNORE INTO quest_members (quest_id, character_id, slot_index) VALUES ($1, $2, $3)",
+                )
+                .bind(quest_id)
+                .bind(char_id)
+                .bind(slot as i32)
+                .execute(&self.pool)
+                .await?;
+            }
+        } else {
+            self.join_quest(quest_id, user_id).await?;
+        }
 
         Ok(Quest {
-            id: id as i32,
+            id: quest_id,
             encounters,
             current_encounter: 0,
             current_node_id: None,
@@ -475,6 +499,153 @@ impl DbConnection {
             .await?;
 
         Ok(CharacterWrapper { character, unit })
+    }
+
+    pub async fn create_party(&self, user_id: i32) -> Result<Party> {
+        let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        self.leave_party(user_id).await.ok();
+
+        let party_id =
+            sqlx::query("INSERT INTO parties (leader_id) VALUES ($1)")
+                .bind(char_id)
+                .execute(&self.pool)
+                .await?
+                .last_insert_rowid() as i32;
+
+        sqlx::query("INSERT INTO party_members (party_id, character_id) VALUES ($1, $2)")
+            .bind(party_id)
+            .bind(char_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(Party { id: party_id, leader_id: char_id })
+    }
+
+    pub async fn join_party(&self, party_id: i32, user_id: i32) -> Result<Party> {
+        let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        self.leave_party(user_id).await.ok();
+
+        sqlx::query(
+            "INSERT OR IGNORE INTO party_members (party_id, character_id) VALUES ($1, $2)",
+        )
+        .bind(party_id)
+        .bind(char_id)
+        .execute(&self.pool)
+        .await?;
+
+        let leader_id: i32 =
+            sqlx::query_scalar("SELECT leader_id FROM parties WHERE id = $1")
+                .bind(party_id)
+                .fetch_one(&self.pool)
+                .await?;
+
+        Ok(Party { id: party_id, leader_id })
+    }
+
+    pub async fn leave_party(&self, user_id: i32) -> Result<()> {
+        let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        // If leader, disband the whole party; otherwise just remove this member
+        let led_party: Option<i32> =
+            sqlx::query_scalar("SELECT id FROM parties WHERE leader_id = $1")
+                .bind(char_id)
+                .fetch_optional(&self.pool)
+                .await?;
+
+        if let Some(pid) = led_party {
+            sqlx::query("DELETE FROM party_members WHERE party_id = $1")
+                .bind(pid)
+                .execute(&self.pool)
+                .await?;
+            sqlx::query("DELETE FROM parties WHERE id = $1")
+                .bind(pid)
+                .execute(&self.pool)
+                .await?;
+        } else {
+            sqlx::query("DELETE FROM party_members WHERE character_id = $1")
+                .bind(char_id)
+                .execute(&self.pool)
+                .await?;
+            // Clean up now-empty parties
+            sqlx::query(
+                "DELETE FROM parties WHERE id NOT IN (SELECT DISTINCT party_id FROM party_members)",
+            )
+            .execute(&self.pool)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_party_for_user(&self, user_id: i32) -> Option<Party> {
+        #[derive(sqlx::FromRow)]
+        struct Row { id: i32, leader_id: i32 }
+
+        sqlx::query_as::<_, Row>(
+            "SELECT p.id, p.leader_id FROM parties p
+             JOIN party_members pm ON p.id = pm.party_id
+             JOIN characters c ON c.id = pm.character_id
+             WHERE c.user_id = $1 LIMIT 1",
+        )
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .map(|r| Party { id: r.id, leader_id: r.leader_id })
+    }
+
+    pub async fn list_open_parties(&self) -> Result<Vec<PartySummary>> {
+        #[derive(sqlx::FromRow)]
+        struct Row { id: i32, member_count: i64 }
+
+        let rows = sqlx::query_as::<_, Row>(
+            "SELECT p.id, COUNT(pm.character_id) as member_count
+             FROM parties p
+             LEFT JOIN party_members pm ON p.id = pm.party_id
+             GROUP BY p.id
+             HAVING COUNT(pm.character_id) < $1",
+        )
+        .bind(crate::data::MAX_PARTY_SIZE as i64)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| PartySummary { id: r.id, member_count: r.member_count as i32 })
+            .collect())
+    }
+
+    pub async fn get_party_members(&self, party_id: i32) -> Result<Vec<CharacterWrapper>> {
+        let characters = sqlx::query_as::<_, Character>(
+            "SELECT c.* FROM characters c
+             JOIN party_members pm ON c.id = pm.character_id
+             WHERE pm.party_id = $1",
+        )
+        .bind(party_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut members = Vec::new();
+        for character in characters {
+            let unit = sqlx::query_as::<_, Unit>("SELECT * FROM units WHERE ref_id = $1")
+                .bind(character.id)
+                .fetch_one(&self.pool)
+                .await?;
+            members.push(CharacterWrapper { character, unit });
+        }
+        Ok(members)
     }
 
     pub async fn update_unit_for_user(&self, user_id: i32, unit: &Unit) -> Result<()> {

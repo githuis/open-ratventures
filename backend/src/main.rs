@@ -17,6 +17,7 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .route("/api/hello-world", get(hello_world))
         .route("/api/register", post(register))
+        .nest("/api", ratback::party::routes())
         .nest("/api", ratback::quest::routes())
         .nest("/api", ratback::users::routes())
         .layer(Extension(enemies))

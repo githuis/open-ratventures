@@ -87,10 +87,22 @@ pub struct Quest {
     pub current_node_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, sqlx::FromRow, sqlx::Type)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Party {
-    pub members: Vec<i32>, //Character id
-    pub quest_id: i32,
+    pub id: i32,
+    pub leader_id: i32,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PartySummary {
+    pub id: i32,
+    pub member_count: i32,
+}
+
+#[derive(Deserialize)]
+pub struct JoinPartyRequest {
+    pub party_id: i32,
+    pub user_id: i32,
 }
 
 pub enum CombatAction {

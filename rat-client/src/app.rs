@@ -10,7 +10,7 @@ use ratatui::{
 };
 use ratback::{
     data::{CharacterWrapper, InventoryItem, ItemEffect, User},
-    quest_data::{Dialogue, DialogueOutcome, Encounter, Quest, QuestSummary},
+    quest_data::{Dialogue, DialogueOutcome, Encounter, Party, PartySummary, Quest},
 };
 
 use crate::client::Rattp;
@@ -24,6 +24,7 @@ pub struct App {
     pub active_user: Option<User>,
     pub active_character: Option<CharacterWrapper>,
     pub active_quest: Option<Quest>,
+    pub active_party: Option<Party>,
     pub party_members: Vec<CharacterWrapper>,
     pub text_input: Option<String>,
     pub client: Rattp,
@@ -48,7 +49,7 @@ pub enum AppState {
     Party,
     Combat,
     Dialogue { dialogue: Dialogue, current_node: String },
-    QuestLobby { quests: Vec<QuestSummary> },
+    PartyLobby { parties: Vec<PartySummary> },
     Inventory { scroll: usize, selected: usize, previous: Box<AppState> },
 }
 
@@ -76,7 +77,12 @@ impl App {
             self.handle_events(TICK).wrap_err("handle events failed")?;
 
             if last_refresh.elapsed() >= REFRESH {
-                self.refresh_quest_state();
+                // Poll for quest start whenever in a party but not yet on a quest
+                if self.active_party.is_some() && self.active_quest.is_none() {
+                    self.refresh_party_state();
+                } else {
+                    self.refresh_quest_state();
+                }
                 last_refresh = Instant::now();
             }
         }
@@ -157,7 +163,7 @@ impl App {
                         let items = self.client.get_shop_items().unwrap_or_default();
                         self.state = AppState::Tavern(TavernState::Shop { items, selected: 0, scroll: 0 });
                     }
-                    KeyCode::Char('a') if has_char => self.start_quest(),
+                    KeyCode::Char('g') if has_char => self.open_party(),
                     KeyCode::Char('o') | KeyCode::Char('r') if has_char => self.start_register_user(),
                     KeyCode::Char('v') => self.open_inventory(),
                     KeyCode::Char('q') => self.exit(),
@@ -219,16 +225,24 @@ impl App {
                 _ => {}
             },
 
-            AppState::QuestLobby { .. } => match key_event.code {
-                KeyCode::Char('1') => self.join_quest_from_lobby(0),
-                KeyCode::Char('2') => self.join_quest_from_lobby(1),
-                KeyCode::Char('3') => self.join_quest_from_lobby(2),
-                KeyCode::Char('4') => self.join_quest_from_lobby(3),
-                KeyCode::Char('5') => self.join_quest_from_lobby(4),
-                KeyCode::Char('n') => self.create_new_quest(),
-                KeyCode::Char('r') | KeyCode::Char('a') => self.start_quest(),
+            AppState::PartyLobby { .. } => match key_event.code {
+                KeyCode::Char('1') => self.join_party_from_lobby(0),
+                KeyCode::Char('2') => self.join_party_from_lobby(1),
+                KeyCode::Char('3') => self.join_party_from_lobby(2),
+                KeyCode::Char('4') => self.join_party_from_lobby(3),
+                KeyCode::Char('5') => self.join_party_from_lobby(4),
+                KeyCode::Char('n') => self.create_new_party(),
+                KeyCode::Char('r') => self.open_party(),
                 KeyCode::Char('q') => self.exit(),
                 KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
+                _ => {}
+            },
+
+            AppState::Party => match key_event.code {
+                KeyCode::Char('n') | KeyCode::Char('a') => self.start_quest(),
+                KeyCode::Char('l') => self.leave_party(),
+                KeyCode::Char('v') => self.open_inventory(),
+                KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
                 _ => {}
             },
 
@@ -259,7 +273,6 @@ impl App {
                 KeyCode::Char('q') => self.exit(),
                 KeyCode::Char('r') => self.start_register_user(),
                 KeyCode::Char('c') => self.register_character(),
-                KeyCode::Char('a') => self.start_quest(),
                 KeyCode::Char('f') => self.attack_first_enemy(5),
                 KeyCode::Char('v') => self.open_inventory(),
                 _ => {}
@@ -325,6 +338,7 @@ impl App {
             let user_id = user.id;
             self.active_character = self.client.post_new_character(&user_id).ok();
             self.inventory = self.client.get_character_items(user_id).unwrap_or_default();
+            self.active_party = self.client.get_party_for_user(user_id).ok();
             self.state = AppState::Tavern(TavernState::Main);
         }
     }
@@ -349,31 +363,65 @@ impl App {
         }
     }
 
-    fn start_quest(&mut self) {
+    fn open_party(&mut self) {
         if self.active_user.is_none() {
             return;
         }
-        let quests = self.client.get_open_quests().unwrap_or_default();
-        self.state = AppState::QuestLobby { quests };
+        // If already in a party, go to the waiting room
+        if self.active_party.is_some() {
+            if let Some(p) = &self.active_party {
+                let pid = p.id;
+                self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+            }
+            self.state = AppState::Party;
+        } else {
+            let parties = self.client.get_open_parties().unwrap_or_default();
+            self.state = AppState::PartyLobby { parties };
+        }
     }
 
-    fn join_quest_from_lobby(&mut self, index: usize) {
-        let (quest_id, user_id) = match &self.state {
-            AppState::QuestLobby { quests } => match quests.get(index) {
-                Some(q) => (q.id, self.active_user.as_ref().map(|u| u.id).unwrap_or(0)),
+    fn join_party_from_lobby(&mut self, index: usize) {
+        let (party_id, user_id) = match &self.state {
+            AppState::PartyLobby { parties } => match parties.get(index) {
+                Some(p) => (p.id, self.active_user.as_ref().map(|u| u.id).unwrap_or(0)),
                 None => return,
             },
             _ => return,
         };
-        if let Ok(quest) = self.client.post_join_quest(quest_id, user_id) {
-            self.active_quest = Some(quest);
-            self.fetch_party_members();
-            self.state = AppState::Main;
-            self.check_current_encounter();
+        if let Ok(party) = self.client.post_join_party(party_id, user_id) {
+            self.active_party = Some(party);
+            if let Some(p) = &self.active_party {
+                let pid = p.id;
+                self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+            }
+            self.state = AppState::Party;
         }
     }
 
-    fn create_new_quest(&mut self) {
+    fn create_new_party(&mut self) {
+        if let Some(user) = &self.active_user {
+            let user_id = user.id;
+            if let Ok(party) = self.client.post_create_party(user_id) {
+                self.active_party = Some(party);
+                if let Some(p) = &self.active_party {
+                    let pid = p.id;
+                    self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+                }
+                self.state = AppState::Party;
+            }
+        }
+    }
+
+    fn leave_party(&mut self) {
+        if let Some(user) = &self.active_user {
+            let _ = self.client.delete_leave_party(user.id);
+        }
+        self.active_party = None;
+        self.party_members.clear();
+        self.state = AppState::Tavern(TavernState::Main);
+    }
+
+    fn start_quest(&mut self) {
         if let Some(user) = &self.active_user {
             let user_id = user.id;
             self.active_quest = match self.client.post_new_quest(user_id) {
@@ -438,12 +486,20 @@ impl App {
             Err(_) => {
                 // Quest is no longer active (completed by another client)
                 self.active_quest = None;
-                self.party_members.clear();
-                self.state = AppState::Tavern(TavernState::Main);
                 if let Some(user) = &self.active_user {
                     if let Ok(updated) = self.client.get_character(user.id) {
                         self.active_character = Some(updated);
                     }
+                }
+                if self.active_party.is_some() {
+                    if let Some(p) = &self.active_party {
+                        let pid = p.id;
+                        self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+                    }
+                    self.state = AppState::Party;
+                } else {
+                    self.party_members.clear();
+                    self.state = AppState::Tavern(TavernState::Main);
                 }
             }
         }
@@ -498,7 +554,31 @@ impl App {
             self.active_character = Some(updated);
         }
         self.active_quest = None;
-        self.state = AppState::Tavern(TavernState::Main);
+        if self.active_party.is_some() {
+            if let Some(p) = &self.active_party {
+                let pid = p.id;
+                self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+            }
+            self.state = AppState::Party;
+        } else {
+            self.state = AppState::Tavern(TavernState::Main);
+        }
+    }
+
+    fn refresh_party_state(&mut self) {
+        // Refresh party member list
+        if let Some(p) = &self.active_party {
+            let pid = p.id;
+            self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+        }
+        // Check if someone else started a quest for this party
+        if let Some(user) = &self.active_user {
+            if let Ok(quest) = self.client.get_active_quest_for_user(user.id) {
+                self.active_quest = Some(quest);
+                self.fetch_party_members();
+                self.check_current_encounter();
+            }
+        }
     }
 
     fn pick_dialogue_choice(&mut self, index: usize) {
@@ -798,8 +878,11 @@ impl Widget for &App {
             AppState::Combat => {
                 self.render_combat(parent_layout[1], buf, text_style);
             }
-            AppState::QuestLobby { quests } => {
-                self.render_quest_lobby(parent_layout[1], buf, text_style, quests);
+            AppState::PartyLobby { parties } => {
+                self.render_party_lobby(parent_layout[1], buf, text_style, parties);
+            }
+            AppState::Party => {
+                self.render_party_screen(parent_layout[1], buf, text_style);
             }
             AppState::Inventory { scroll, selected, previous } => {
                 let popup_width = 60.min(area.width.saturating_sub(4));

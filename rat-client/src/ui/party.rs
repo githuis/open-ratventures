@@ -9,7 +9,7 @@ use ratatui::{
 use ratback::data::CharacterWrapper;
 
 use crate::app::App;
-use crate::ui::{C_ACCENT, C_PANEL};
+use crate::ui::{C_ACCENT, C_ALERT, C_PANEL};
 
 impl App {
     pub(crate) fn render_party(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -27,7 +27,12 @@ impl App {
         let bg = C_PANEL;
 
         if characters.is_empty() {
-            Paragraph::new(" No other party members")
+            let msg = if self.active_party.is_some() || self.active_quest.is_some() {
+                " Waiting for others..."
+            } else {
+                " Not in a party"
+            };
+            Paragraph::new(msg)
                 .block(block)
                 .bg(bg)
                 .render(area, buf);
@@ -75,5 +80,83 @@ impl App {
                 .bg(C_PANEL)
                 .render(card_area, buf);
         }
+    }
+
+    pub(crate) fn render_party_screen(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
+        let my_char_id = self.active_character.as_ref().map(|c| c.character.id);
+        let is_leader = self.active_party.as_ref()
+            .zip(self.active_character.as_ref())
+            .map(|(p, c)| p.leader_id == c.character.id)
+            .unwrap_or(false);
+
+        let block = Block::default()
+            .title(Line::from(" Party ".bold()))
+            .borders(Borders::ALL)
+            .border_set(border::THICK)
+            .border_style(Style::default().fg(C_ACCENT));
+
+        let in_party = self.active_party.is_some();
+        let mut lines = vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                if in_party { " You are in a party" } else { " You are not in a party" },
+                Style::default().fg(if in_party { C_ACCENT } else { C_ALERT }),
+            )),
+            Line::from(""),
+            Line::from(" Members:".bold()),
+            Line::from(""),
+        ];
+
+        if self.party_members.is_empty() {
+            lines.push(Line::from(Span::styled(
+                "  Waiting for others to join...",
+                Style::default().fg(C_ALERT),
+            )));
+        } else {
+            for c in &self.party_members {
+                let is_you = Some(c.character.id) == my_char_id;
+                let leader_mark = if self.active_party.as_ref().map(|p| p.leader_id == c.character.id).unwrap_or(false) {
+                    " ★"
+                } else {
+                    ""
+                };
+                lines.push(Line::from(Span::styled(
+                    format!("  {}{}{}", c.character.name, leader_mark, if is_you { " (you)" } else { "" }),
+                    text_style,
+                )));
+                lines.push(Line::from(Span::styled(
+                    format!("    HP {}/{}", c.unit.health, c.unit.max_health),
+                    Style::default().fg(C_ACCENT),
+                )));
+            }
+        }
+
+        lines.push(Line::from(""));
+
+        if is_leader {
+            lines.push(Line::from(vec![
+                Span::styled(" [N] ", text_style),
+                "Start quest — all members will join".into(),
+            ]));
+        } else {
+            lines.push(Line::from(Span::styled(
+                " Waiting for the party leader to start a quest...",
+                Style::default().fg(C_ALERT),
+            )));
+        }
+
+        lines.push(Line::from(vec![
+            Span::styled(" [L] ", text_style),
+            "Leave party".into(),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled(" [Q] ", text_style),
+            "Back to tavern (stay in party)".into(),
+        ]));
+
+        Paragraph::new(lines)
+            .block(block)
+            .bg(C_PANEL)
+            .render(area, buf);
     }
 }

@@ -23,6 +23,7 @@ pub fn routes() -> Router {
         .route("/quest/{id}", get(get_quest))
         .route("/quest/{id}/encounters", put(update_encounters))
         .route("/quest/{id}/members", get(quest_members))
+        .route("/quest/active/{user_id}", get(get_active_quest_for_user))
         .route("/dialogue/{id}", get(get_dialogue))
 }
 
@@ -88,6 +89,16 @@ async fn complete_quest(
         .await
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn get_active_quest_for_user(
+    Extension(db): Extension<DbConnection>,
+    Path(user_id): Path<i32>,
+) -> Result<Json<Quest>, StatusCode> {
+    db.get_quest_for_user(user_id)
+        .await
+        .map(Json)
+        .ok_or(StatusCode::NOT_FOUND)
 }
 
 async fn get_dialogue(

@@ -56,7 +56,7 @@ impl App {
                     Line::from(""),
                     Line::from(""),
                     opt("[S]", "Shop — browse goods from the barkeep", has_char),
-                    opt("[A]", "Adventure — seek a quest", has_char),
+                    opt("[G]", "Group — group up with a new or existing adventuring party", has_char),
                     opt("[O]", "Options — change character", has_char),
                     Line::from(vec![
                         "  ".into(),
