@@ -84,10 +84,6 @@ impl App {
 
     pub(crate) fn render_party_screen(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let my_char_id = self.active_character.as_ref().map(|c| c.character.id);
-        let is_leader = self.active_party.as_ref()
-            .zip(self.active_character.as_ref())
-            .map(|(p, c)| p.leader_id == c.character.id)
-            .unwrap_or(false);
 
         let block = Block::default()
             .title(Line::from(" Party ".bold()))
@@ -132,19 +128,11 @@ impl App {
         }
 
         lines.push(Line::from(""));
-
-        if is_leader {
-            lines.push(Line::from(vec![
-                Span::styled(" [N] ", text_style),
-                "Start quest — all members will join".into(),
-            ]));
-        } else {
-            lines.push(Line::from(Span::styled(
-                " Waiting for the party leader to start a quest...",
-                Style::default().fg(C_ALERT),
-            )));
-        }
-
+        lines.push(Line::from(Span::styled(
+            " Return to the tavern to start an adventure.",
+            Style::default().fg(C_ALERT),
+        )));
+        lines.push(Line::from(""));
         lines.push(Line::from(vec![
             Span::styled(" [L] ", text_style),
             "Leave party".into(),

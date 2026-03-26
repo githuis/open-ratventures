@@ -85,10 +85,7 @@ async fn complete_quest(
     Extension(db): Extension<DbConnection>,
     Json(req): Json<CompleteQuestRequest>,
 ) -> Result<Json<CharacterWrapper>, StatusCode> {
-    db.complete_quest(req.quest_id, req.user_id)
-        .await
-        .map(Json)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+    db.complete_quest(req.quest_id, req.user_id, 5, 1).await.map(Json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 async fn get_active_quest_for_user(

@@ -50,6 +50,7 @@ pub enum AppState {
     Combat,
     Dialogue { dialogue: Dialogue, current_node: String },
     PartyLobby { parties: Vec<PartySummary> },
+    AdventureMenu,
     Inventory { scroll: usize, selected: usize, previous: Box<AppState> },
 }
 
@@ -163,6 +164,7 @@ impl App {
                         let items = self.client.get_shop_items().unwrap_or_default();
                         self.state = AppState::Tavern(TavernState::Shop { items, selected: 0, scroll: 0 });
                     }
+                    KeyCode::Char('a') if has_char => self.state = AppState::AdventureMenu,
                     KeyCode::Char('g') if has_char => self.open_party(),
                     KeyCode::Char('o') | KeyCode::Char('r') if has_char => self.start_register_user(),
                     KeyCode::Char('v') => self.open_inventory(),
@@ -239,12 +241,23 @@ impl App {
             },
 
             AppState::Party => match key_event.code {
-                KeyCode::Char('n') | KeyCode::Char('a') => self.start_quest(),
                 KeyCode::Char('l') => self.leave_party(),
                 KeyCode::Char('v') => self.open_inventory(),
                 KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
                 _ => {}
             },
+
+            AppState::AdventureMenu => {
+                let renown = self.active_character.as_ref().map(|c| c.character.renown).unwrap_or(0);
+                match key_event.code {
+                    KeyCode::Char('1') => self.start_quest(),
+                    KeyCode::Char('2') if renown >= 5 => self.start_quest(),
+                    KeyCode::Char('3') if renown >= 10 => self.start_quest(),
+                    KeyCode::Char('4') if renown >= 20 => self.start_quest(),
+                    KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Main),
+                    _ => {}
+                }
+            }
 
             AppState::Combat => match key_event.code {
                 KeyCode::Char('f') => self.attack_first_enemy(5),
@@ -550,6 +563,9 @@ impl App {
             (Some(q), Some(u)) => (q.id, u.id),
             _ => return,
         };
+        if let Some(c) = &self.active_character {
+            let _ = self.client.save_character_stats(user_id, c.character.coins, c.character.renown);
+        }
         if let Ok(updated) = self.client.post_complete_quest(quest_id, user_id) {
             self.active_character = Some(updated);
         }
@@ -650,6 +666,9 @@ impl App {
                     if heal != 0 {
                         c.unit.health = (c.unit.health + heal).clamp(0, c.unit.max_health);
                     }
+                }
+                if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
+                    let _ = self.client.save_character_stats(user.id, c.character.coins, c.character.renown);
                 }
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_encounter += 1;
@@ -878,6 +897,9 @@ impl Widget for &App {
             }
             AppState::Combat => {
                 self.render_combat(parent_layout[1], buf, text_style);
+            }
+            AppState::AdventureMenu => {
+                self.render_adventure_menu(parent_layout[1], buf, text_style);
             }
             AppState::PartyLobby { parties } => {
                 self.render_party_lobby(parent_layout[1], buf, text_style, parties);

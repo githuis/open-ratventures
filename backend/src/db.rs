@@ -472,17 +472,18 @@ impl DbConnection {
         Ok(())
     }
 
-    pub async fn complete_quest(&self, quest_id: i32, user_id: i32) -> Result<CharacterWrapper> {
+    pub async fn complete_quest(&self, quest_id: i32, user_id: i32, reward_coins: u32, reward_renown: u32) -> Result<CharacterWrapper> {
         sqlx::query("UPDATE quests SET status = 'completed' WHERE id = $1")
             .bind(quest_id)
             .execute(&self.pool)
             .await?;
 
-        // Reward all members: +1 renown, +5 coins
         sqlx::query(
-            "UPDATE characters SET renown = renown + 1, coins = coins + 5
-             WHERE id IN (SELECT character_id FROM quest_members WHERE quest_id = $1)",
+            "UPDATE characters SET coins = coins + $1, renown = renown + $2
+             WHERE id IN (SELECT character_id FROM quest_members WHERE quest_id = $3)",
         )
+        .bind(reward_coins)
+        .bind(reward_renown)
         .bind(quest_id)
         .execute(&self.pool)
         .await?;
@@ -663,6 +664,39 @@ impl DbConnection {
         .bind(char_id)
         .execute(&self.pool)
         .await?;
+        Ok(())
+    }
+
+    pub async fn save_character_stats(&self, user_id: i32, coins: u32, renown: u32) -> Result<()> {
+        sqlx::query("UPDATE characters SET coins = $1, renown = $2 WHERE user_id = $3")
+            .bind(coins)
+            .bind(renown)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn apply_reward(&self, user_id: i32, coins: i32, renown: i32, heal: i32) -> Result<()> {
+        sqlx::query(
+            "UPDATE characters SET coins = MAX(0, coins + $1), renown = MAX(0, renown + $2) WHERE user_id = $3",
+        )
+        .bind(coins)
+        .bind(renown)
+        .bind(user_id)
+        .execute(&self.pool)
+        .await?;
+
+        if heal != 0 {
+            sqlx::query(
+                "UPDATE units SET health = MIN(max_health, MAX(0, health + $1))
+                 WHERE ref_id = (SELECT id FROM characters WHERE user_id = $2)",
+            )
+            .bind(heal)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+        }
         Ok(())
     }
 

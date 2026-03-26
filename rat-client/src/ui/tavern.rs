@@ -10,7 +10,64 @@ use ratatui::{
 use crate::app::{App, TavernState};
 use crate::ui::{C_ALERT, C_ACCENT, C_PANEL};
 
+const DEPTHS_RENOWN: u32 = 5;
+const WARRENS_RENOWN: u32 = 10;
+const ABYSS_RENOWN: u32 = 20;
+
 impl App {
+    pub(crate) fn render_adventure_menu(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
+        let renown = self.active_character.as_ref().map(|c| c.character.renown).unwrap_or(0);
+        let dim = Style::default().fg(C_ACCENT);
+
+        let block = Block::default()
+            .title(Line::from(" Adventure — Choose a Destination ".bold()))
+            .borders(Borders::ALL)
+            .border_set(border::THICK)
+            .border_style(Style::default().fg(C_ACCENT))
+            .bg(C_PANEL);
+
+        let zone = |key: &'static str, label: &'static str, note: Option<&'static str>, enabled: bool| -> Line<'static> {
+            if enabled {
+                let mut spans = vec![
+                    "  ".into(),
+                    Span::styled(key, text_style),
+                    format!("  {label}").into(),
+                ];
+                if let Some(n) = note {
+                    spans.push(Span::styled(format!("  — {n}"), dim));
+                }
+                Line::from(spans)
+            } else {
+                Line::from(Span::styled(format!("  {key}  {label}"), dim))
+            }
+        };
+
+        let abyss_label = if renown >= ABYSS_RENOWN { "The Abyss" } else { "????" };
+        let abyss_note: Option<&'static str> = if renown >= ABYSS_RENOWN { Some("something stirs below") } else { None };
+
+        let lines = vec![
+            Line::from(""),
+            Line::from(Span::styled("  Where do you venture?", text_style)),
+            Line::from(""),
+            zone("[1]", "Top-level Sewers", Some("common rats and ruffians"), true),
+            zone("[2]", "Sewer Depths", Some("darker, more dangerous"), renown >= DEPTHS_RENOWN),
+            zone("[3]", "The Fungal Warrens", Some("bioluminescent caverns below the sewers"), renown >= WARRENS_RENOWN),
+            zone("[4]", abyss_label, abyss_note, renown >= ABYSS_RENOWN),
+            Line::from(Span::styled("  [5]  Follow Clues  — (coming soon)", dim)),
+            Line::from(""),
+            Line::from(vec![
+                "  ".into(),
+                Span::styled("[Esc]", text_style),
+                "  Back".into(),
+            ]),
+        ];
+
+        Paragraph::new(lines)
+            .block(block)
+            .wrap(Wrap { trim: false })
+            .render(area, buf);
+    }
+
     pub(crate) fn render_tavern(&self, area: Rect, buf: &mut Buffer, text_style: Style, sub: &TavernState) {
         match sub {
             TavernState::Main => {
@@ -55,6 +112,7 @@ impl App {
                     )),
                     Line::from(""),
                     Line::from(""),
+                    opt("[A]", "Adventure — seek out a quest", has_char),
                     opt("[S]", "Shop — browse goods from the barkeep", has_char),
                     opt("[G]", "Group — group up with a new or existing adventuring party", has_char),
                     opt("[O]", "Options — change character", has_char),

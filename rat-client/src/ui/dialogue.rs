@@ -1,6 +1,6 @@
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Margin, Rect},
     style::{Style, Stylize},
     symbols::border,
     text::{Line, Span},
@@ -72,10 +72,11 @@ impl App {
             }
         }
 
+        let inner = area.inner(Margin { horizontal: 2, vertical: 0 });
         Paragraph::new(lines)
             .block(block)
             .wrap(Wrap { trim: false })
             .bg(C_BG)
-            .render(area, buf);
+            .render(inner, buf);
     }
 }
