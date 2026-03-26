@@ -11,6 +11,12 @@ use crate::data::{CharacterWrapper, MAX_ENCOUNTER_LENGTH};
 use crate::db::DbConnection;
 use crate::quest_data::{Combat, CompleteQuestRequest, Dialogue, Encounter, JoinQuestRequest, Monster, Quest, QuestSummary, UpdateEncountersRequest};
 
+#[derive(serde::Deserialize)]
+struct NewQuestRequest {
+    user_id: i32,
+    area: String,
+}
+
 type DialogueMap = Arc<HashMap<String, Dialogue>>;
 type EnemyList = Arc<Vec<Monster>>;
 
@@ -31,15 +37,15 @@ async fn init_quest(
     Extension(db): Extension<DbConnection>,
     Extension(dialogues): Extension<DialogueMap>,
     Extension(enemies): Extension<EnemyList>,
-    Json(user_id): Json<i32>,
+    Json(req): Json<NewQuestRequest>,
 ) -> Json<Quest> {
-    if let Some(existing) = db.get_quest_for_user(user_id).await {
+    if let Some(existing) = db.get_quest_for_user(req.user_id).await {
         return Json(existing);
     }
-    let party_renown = db.get_character(user_id.to_string()).await
+    let party_renown = db.get_character(req.user_id.to_string()).await
         .map(|c| c.character.renown)
         .unwrap_or(0);
-    let quest = db.new_quest(make_encounters(&dialogues, &enemies, party_renown), user_id).await.unwrap();
+    let quest = db.new_quest(make_encounters(&dialogues, &enemies, party_renown, &req.area), req.user_id).await.unwrap();
     Json(quest)
 }
 
@@ -105,12 +111,14 @@ async fn get_dialogue(
     dialogues.get(&id).cloned().map(Json).ok_or(StatusCode::NOT_FOUND)
 }
 
-fn make_encounters(dialogues: &HashMap<String, Dialogue>, enemies: &[Monster], party_renown: u32) -> Vec<Encounter> {
+fn make_encounters(dialogues: &HashMap<String, Dialogue>, enemies: &[Monster], party_renown: u32, area: &str) -> Vec<Encounter> {
     let eligible_enemies: Vec<&Monster> = enemies.iter()
         .filter(|e| e.required_renown <= party_renown)
+        .filter(|e| e.areas.is_empty() || e.areas.iter().any(|a| a == area))
         .collect();
     let eligible_dialogues: Vec<&str> = dialogues.values()
         .filter(|d| d.required_renown <= party_renown)
+        .filter(|d| d.areas.is_empty() || d.areas.iter().any(|a| a == area))
         .map(|d| d.id.as_str())
         .collect();
 
@@ -127,6 +135,7 @@ fn make_encounters(dialogues: &HashMap<String, Dialogue>, enemies: &[Monster], p
                         attack: t.attack,
                         items: t.items.clone(),
                         required_renown: t.required_renown,
+                        areas: t.areas.clone(),
                     }
                 })
                 .collect();

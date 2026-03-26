@@ -97,8 +97,9 @@ impl Rattp {
      * Quests
      ***********/
 
-    pub(crate) fn post_new_quest(&self, user_id: i32) -> Result<Quest, Box<dyn Error>> {
-        let response = self.http.post(self.destination("quest")).json(&user_id).send()?.text()?;
+    pub(crate) fn post_new_quest(&self, user_id: i32, area: &str) -> Result<Quest, Box<dyn Error>> {
+        let body = serde_json::json!({ "user_id": user_id, "area": area });
+        let response = self.http.post(self.destination("quest")).json(&body).send()?.text()?;
         let quest: Quest = serde_json::from_str(&response)?;
         Ok(quest)
     }

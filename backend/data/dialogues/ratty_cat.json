@@ -100,5 +100,6 @@
       ]
     }
   },
-  "required_renown": 5
+  "required_renown": 5,
+  "areas": ["fungal_warrens"]
 }

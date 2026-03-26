@@ -33,5 +33,6 @@
       ]
     }
   },
-  "required_renown": 1
+  "required_renown": 1,
+  "areas": ["sewers", "sewer_depths"]
 }

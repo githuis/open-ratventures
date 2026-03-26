@@ -17,6 +17,11 @@ use crate::client::Rattp;
 use crate::tui;
 use crate::ui::C_TEXT;
 
+pub(crate) const AREA_SEWERS: &str = "sewers";
+pub(crate) const AREA_SEWER_DEPTHS: &str = "sewer_depths";
+pub(crate) const AREA_FUNGAL_WARRENS: &str = "fungal_warrens";
+pub(crate) const AREA_ABYSS: &str = "abyss";
+
 #[derive(Debug, Default)]
 pub struct App {
     pub exit: bool,
@@ -250,10 +255,10 @@ impl App {
             AppState::AdventureMenu => {
                 let renown = self.active_character.as_ref().map(|c| c.character.renown).unwrap_or(0);
                 match key_event.code {
-                    KeyCode::Char('1') => self.start_quest(),
-                    KeyCode::Char('2') if renown >= 5 => self.start_quest(),
-                    KeyCode::Char('3') if renown >= 10 => self.start_quest(),
-                    KeyCode::Char('4') if renown >= 20 => self.start_quest(),
+                    KeyCode::Char('1') => self.start_quest(AREA_SEWERS),
+                    KeyCode::Char('2') if renown >= 5 => self.start_quest(AREA_SEWER_DEPTHS),
+                    KeyCode::Char('3') if renown >= 10 => self.start_quest(AREA_FUNGAL_WARRENS),
+                    KeyCode::Char('4') if renown >= 20 => self.start_quest(AREA_ABYSS),
                     KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Main),
                     _ => {}
                 }
@@ -434,10 +439,10 @@ impl App {
         self.state = AppState::Tavern(TavernState::Main);
     }
 
-    fn start_quest(&mut self) {
+    fn start_quest(&mut self, area: &str) {
         if let Some(user) = &self.active_user {
             let user_id = user.id;
-            self.active_quest = match self.client.post_new_quest(user_id) {
+            self.active_quest = match self.client.post_new_quest(user_id, area) {
                 Ok(new_q) => Some(new_q),
                 _ => None,
             };

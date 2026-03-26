@@ -11,6 +11,8 @@ pub struct Monster {
     pub items: Vec<Item>,
     #[serde(default)]
     pub required_renown: u32,
+    #[serde(default)]
+    pub areas: Vec<String>,
 }
 
 impl Monster {
@@ -52,6 +54,8 @@ pub struct Dialogue {
     pub nodes: HashMap<String, DialogueNode>,
     #[serde(default)]
     pub required_renown: u32,
+    #[serde(default)]
+    pub areas: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

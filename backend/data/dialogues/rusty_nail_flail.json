@@ -33,5 +33,6 @@
       ]
     }
   },
-  "required_renown": 3
+  "required_renown": 3,
+  "areas": ["sewer_depths", "fungal_warrens"]
 }
