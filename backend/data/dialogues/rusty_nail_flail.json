@@ -3,7 +3,7 @@
   "start": "start",
   "nodes": {
     "start": {
-      "text": "Dangling from a nail in the wall is what appears to be someone's failed craft project: three rusty nails knotted to a length of leather strap. A small scrap of parchment is attached. It reads: 'DO NOT TOUCH \u00e2\u20ac\u201d Bertram'. Bertram is nowhere to be seen.",
+      "text": "Dangling from a nail in the wall is what appears to be someone's failed craft project: three rusty nails knotted to a length of leather strap. A small scrap of parchment is attached. It reads: 'DO NOT TOUCH â€” Bertram'. Bertram is nowhere to be seen.",
       "choices": [
         {
           "text": "Take it. Sorry, Bertram.",
@@ -33,6 +33,8 @@
       ]
     }
   },
-  "required_renown": 3,
-  "areas": ["sewer_depths", "fungal_warrens"]
+  "areas": [
+    "sewer_depths",
+    "fungal_warrens"
+  ]
 }

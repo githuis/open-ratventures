@@ -6,7 +6,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
-use ratback::quest_data::Encounter;
+use ratback::{data::MAX_ENCOUNTER_LENGTH, quest_data::Encounter};
 
 use crate::app::App;
 use crate::ui::{C_TEXT, C_ACCENT, C_PANEL};
@@ -77,6 +77,11 @@ impl App {
                 " | ".into(),
                 enc_type.into(),
             ]));
+
+            let total = MAX_ENCOUNTER_LENGTH;
+            let filled = (quest.current_encounter as usize + 1).min(total);
+            let bar = format!("▕{}{}▏", "█".repeat(filled), "░".repeat(total - filled));
+            lines.push(Line::from(Span::styled(bar, Style::default().fg(C_ACCENT))));
         }
 
 

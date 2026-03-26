@@ -29,6 +29,8 @@
       "charges": 1
     }
   ],
-  "required_renown": 3,
-  "areas": ["sewer_depths", "fungal_warrens"]
+  "areas": [
+    "sewer_depths",
+    "fungal_warrens"
+  ]
 }

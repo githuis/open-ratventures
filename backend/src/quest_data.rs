@@ -10,8 +10,6 @@ pub struct Monster {
     pub attack: i32,
     pub items: Vec<Item>,
     #[serde(default)]
-    pub required_renown: u32,
-    #[serde(default)]
     pub areas: Vec<String>,
 }
 
@@ -52,8 +50,6 @@ pub struct Dialogue {
     pub id: String,
     pub start: String,
     pub nodes: HashMap<String, DialogueNode>,
-    #[serde(default)]
-    pub required_renown: u32,
     #[serde(default)]
     pub areas: Vec<String>,
 }

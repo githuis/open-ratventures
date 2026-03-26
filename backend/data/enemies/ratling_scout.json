@@ -29,6 +29,8 @@
       "charges": 2
     }
   ],
-  "required_renown": 0,
-  "areas": ["sewers", "sewer_depths"]
+  "areas": [
+    "sewers",
+    "sewer_depths"
+  ]
 }
