@@ -1,0 +1,12 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ratback-db:/app/db
+
+volumes:
+  ratback-db:

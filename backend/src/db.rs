@@ -18,7 +18,8 @@ pub struct DbConnection {
 
 impl DbConnection {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let db_options = SqliteConnectOptions::from_str("sqlite://data.db")?.to_owned();
+        let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://data.db".to_string());
+        let db_options = SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
 
         let pool = SqlitePoolOptions::new().connect_with(db_options).await?;
 

@@ -24,8 +24,10 @@ async fn main() -> Result<()> {
         .layer(Extension(dialogues))
         .layer(Extension(db));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let listener = TcpListener::bind(addr).await?;
+    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(3000);
+    let addr = format!("{host}:{port}");
+    let listener = TcpListener::bind(&addr).await?;
 
     axum::serve(listener, app).await?;
 
