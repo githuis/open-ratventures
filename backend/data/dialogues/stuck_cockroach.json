@@ -1,0 +1,83 @@
+{
+  "id": "stuck_cockroach",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "Something enormous is wedged into a side pipe, legs churning. A giant cockroach, its shell a greasy copper, is stuck fast — half in, half out of the drain. It makes a horrible grinding noise as it struggles. One antenna waves at you, possibly in greeting.",
+      "choices": [
+        {
+          "text": "Try to work it free.",
+          "next": "freed",
+          "outcome": null
+        },
+        {
+          "text": "Put it out of its misery.",
+          "next": "fight",
+          "outcome": null
+        },
+        {
+          "text": "Walk past the noise.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "freed": {
+      "text": "With some heaving, a terrible sucking sound, and more fluid than you'd prefer, the cockroach comes free. It shakes itself, regarding you with too many eyes. Then it deposits something from its mandibles into your hand — a small cluster of coins, warm and slightly damp. It scuttles away without looking back.",
+      "choices": [
+        {
+          "text": "Pocket the coins.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 5,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "fight": {
+      "text": "The cockroach does not appreciate the gesture. It wrenches itself free in a burst of shell and fury.",
+      "choices": [
+        {
+          "text": "Fight the cockroach.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 12,
+                    "energy": 10,
+                    "max_health": 12,
+                    "max_energy": 10
+                  },
+                  "name": "Giant Sewer Cockroach",
+                  "attack": 3,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Mandible Crush",
+                      "description": "A vice-grip of chitinous jaw.",
+                      "effect": {"Damage": 6},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewers"]
+}

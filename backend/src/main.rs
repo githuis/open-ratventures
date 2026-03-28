@@ -3,7 +3,6 @@ mod static_string_loader;
 use axum::{ Extension, Router, response::Json, routing::{get, post}, };
 use color_eyre::Result;
 use ratback::db::DbConnection;
-use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use ratback::data::User;
 use static_string_loader::{load_dialogues, load_enemies};

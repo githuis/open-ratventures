@@ -1,0 +1,90 @@
+{
+  "id": "mirror_rat",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "Something is standing in the passage ahead, doing what you're doing a half-second after you do it. When you stop, it stops. When you tilt your head, it tilts its head. It has your height, your shape, your posture — but its fur is the wrong colour and its eyes catch no light at all. It waits.",
+      "choices": [
+        {
+          "text": "Speak to it.",
+          "next": "spoken",
+          "outcome": null
+        },
+        {
+          "text": "Follow it when it turns.",
+          "next": "followed",
+          "outcome": null
+        },
+        {
+          "text": "Walk past without acknowledging it.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "spoken": {
+      "text": "It says your last word back at you. Then the word before that. Then one from much earlier — something you said days ago, to someone who isn't here. You don't know how it knows. After a moment, it becomes apparent it intends to work backwards through everything you've ever said. You'll need to decide how you feel about that.",
+      "choices": [
+        {
+          "text": "Attack it before it goes further.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 50,
+                    "energy": 20,
+                    "max_health": 50,
+                    "max_energy": 20
+                  },
+                  "name": "Mirror Rat",
+                  "attack": 8,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Reflected Strike",
+                      "description": "Returns damage with the weight of everything you've done.",
+                      "effect": {"Damage": 13},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        },
+        {
+          "text": "Turn away and walk on.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "followed": {
+      "text": "It leads you through several passages that you're fairly sure weren't there before. Eventually it stops at a section of wall that is not entirely solid and looks at you over its shoulder with your own face. There's something on the ground — coins, but cold in a way that lasts. It walks into the wall and is gone.",
+      "choices": [
+        {
+          "text": "Take the coins.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 16,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["abyss"]
+}

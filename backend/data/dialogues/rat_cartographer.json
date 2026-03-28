@@ -1,0 +1,61 @@
+{
+  "id": "rat_cartographer",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat is pressed against the tunnel wall, a roll of vellum maps clutched to their chest, peering around every corner before they move. They spot you and flinch badly. 'Oh — you're not one of the brutes. Good. I've been mapping the lower passages for the Guild and I've become somewhat — the turns are inconsistent down here. I was hoping someone might —' They trail off hopefully.",
+      "choices": [
+        {
+          "text": "Offer to escort them back to safer tunnels.",
+          "next": "escort",
+          "outcome": null
+        },
+        {
+          "text": "Ask if any of their maps would be useful to you.",
+          "next": "maps",
+          "outcome": null
+        },
+        {
+          "text": "Wish them luck and walk on.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "escort": {
+      "text": "The cartographer talks the entire way — mostly about sewage flow patterns, which you hadn't expected to find interesting. At the junction they know, they stop, square their shoulders, and press a small purse into your hand. 'The Guild pays for safe return of surveyors. You've done the Guild a service.'",
+      "choices": [
+        {
+          "text": "Take the payment and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 9,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "maps": {
+      "text": "The cartographer hesitates — these are Guild property, technically — then pulls a sheet free. 'This one shows the drainage routes for this level. Might help you avoid the blocked sections.' You're not sure how much use the technical notation is, but just having a map feels reassuring.",
+      "choices": [
+        {
+          "text": "Take the map and thank them.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 5
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewers"]
+}

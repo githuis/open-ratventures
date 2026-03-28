@@ -1,0 +1,93 @@
+{
+  "id": "mycelium_guardian",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "The passage ends at a wide chamber where the floor is entirely covered in fungal growth — dense, pale, and threaded with something that pulses. Standing in the centre is a creature that was once a badger. Now threads of mycelium lace through its fur, its skin, the spaces between its fingers. It turns toward you with a slowness that suggests it has time to spare. 'State your purpose in the Warren,' it says. Each word arrives slightly after the mouth moves.",
+      "choices": [
+        {
+          "text": "We mean no harm. We're passing through.",
+          "next": "accepted",
+          "outcome": null
+        },
+        {
+          "text": "We serve the Warren. All growth is welcome.",
+          "next": "honored",
+          "outcome": null
+        },
+        {
+          "text": "Attack the creature before it can act.",
+          "next": "fight",
+          "outcome": null
+        }
+      ]
+    },
+    "accepted": {
+      "text": "A long pause. The threads in its fur shift. 'Passing things pass through. This is the nature of passing things.' It steps aside with slow deliberateness. As you move through the chamber, the fungal floor seems to part slightly around your feet — not harmful, just aware.",
+      "choices": [
+        {
+          "text": "Move through the chamber.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "honored": {
+      "text": "Something shifts in the chamber — a feeling of pressure releasing. The guardian's expression, such as it is, changes. It places one broad hand briefly on your shoulder. When it withdraws, you feel better than you did — a warmth that moves through muscle and bone. 'The Warren remembers those who know it,' it says.",
+      "choices": [
+        {
+          "text": "Continue through the chamber.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 20
+            }
+          }
+        }
+      ]
+    },
+    "fight": {
+      "text": "The mycelium guardian does not react the way a creature reacts to being attacked. It turns. The threads in the floor rise. 'You are a pruning event,' it says, without emotion. 'The Warren accommodates pruning events.'",
+      "choices": [
+        {
+          "text": "Fight the mycelium guardian.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 36,
+                    "energy": 20,
+                    "max_health": 36,
+                    "max_energy": 20
+                  },
+                  "name": "Mycelium Guardian",
+                  "attack": 6,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Spore Burst",
+                      "description": "Releases a concentrated bloom of toxic mycelium spores.",
+                      "effect": {"Damage": 12},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["fungal_warrens"]
+}

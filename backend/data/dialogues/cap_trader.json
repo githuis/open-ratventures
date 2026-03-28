@@ -1,0 +1,93 @@
+{
+  "id": "cap_trader",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A dormouse with an improbably large pack has set up a makeshift stall between two fungal columns. The pack is open, revealing rows of stoppered vials and waxed cloth bundles, each one labelled in a spidery hand. 'Fresh from the deep caps!' they announce, adjusting their spectacles. 'Nothing that'll kill you outright, I promise. Probably.'",
+      "choices": [
+        {
+          "text": "Ask for a free sample.",
+          "next": "sample",
+          "outcome": null
+        },
+        {
+          "text": "Buy the Mole's Vitality Brew they have on the shelf.",
+          "next": null,
+          "outcome": {
+            "GiveItem": {
+              "item_name": "Mole's Vitality Brew",
+              "cost": 12
+            }
+          }
+        },
+        {
+          "text": "Pocket something while they look away.",
+          "next": "caught",
+          "outcome": null
+        },
+        {
+          "text": "Browse and move on.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "sample": {
+      "text": "The dormouse selects a vial after much deliberation and hands it over. 'This one's a mild restorative — warm, slightly mushroomy, does what it says. No charge. Good advertising.' You drink it. They weren't lying.",
+      "choices": [
+        {
+          "text": "Thank them and continue.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 12
+            }
+          }
+        }
+      ]
+    },
+    "caught": {
+      "text": "The dormouse's hand snaps out and catches your wrist with surprising force. 'I count everything,' they say pleasantly. 'Three times. Before opening.' They let go and reach under the stall. 'I do appreciate boldness, however. So this one's educational rather than fatal.'",
+      "choices": [
+        {
+          "text": "Fight the dormouse trader.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 20,
+                    "energy": 15,
+                    "max_health": 20,
+                    "max_energy": 15
+                  },
+                  "name": "Dormouse Trader",
+                  "attack": 3,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Paralytic Tincture",
+                      "description": "A precisely measured dose of something deeply unpleasant.",
+                      "effect": {"Damage": 10},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["fungal_warrens"]
+}

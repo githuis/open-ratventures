@@ -18,6 +18,7 @@ pub struct DbConnection {
 
 impl DbConnection {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+
         let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://data.db".to_string());
         let db_options = SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
 
@@ -141,9 +142,10 @@ impl DbConnection {
 
         Ok(rows.into_iter().map(|r| {
             let effect = match r.effect_type.as_str() {
-                "heal"      => ItemEffect::Heal(r.effect_value),
-                "full_heal" => ItemEffect::FullHeal,
-                _           => ItemEffect::Damage(r.effect_value),
+                "heal"       => ItemEffect::Heal(r.effect_value),
+                "full_heal"  => ItemEffect::FullHeal,
+                "max_hp_up"  => ItemEffect::MaxHpUp(r.effect_value),
+                _            => ItemEffect::Damage(r.effect_value),
             };
             ShopItem {
                 item: Item { id: r.id, name: r.name, description: r.description, effect, charges: r.charges },
@@ -173,6 +175,7 @@ impl DbConnection {
             let effect = match r.effect_type.as_str() {
                 "heal"      => ItemEffect::Heal(r.effect_value),
                 "full_heal" => ItemEffect::FullHeal,
+                "max_hp_up" => ItemEffect::MaxHpUp(r.effect_value),
                 _           => ItemEffect::Damage(r.effect_value),
             };
             Item { id: r.id, name: r.name, description: r.description, effect, charges: r.charges }
@@ -206,9 +209,10 @@ impl DbConnection {
             .into_iter()
             .map(|r| {
                 let effect = match r.effect_type.as_str() {
-                    "heal" => ItemEffect::Heal(r.effect_value),
+                    "heal"      => ItemEffect::Heal(r.effect_value),
                     "full_heal" => ItemEffect::FullHeal,
-                    _ => ItemEffect::Damage(r.effect_value),
+                    "max_hp_up" => ItemEffect::MaxHpUp(r.effect_value),
+                    _           => ItemEffect::Damage(r.effect_value),
                 };
                 InventoryItem {
                     item: Item {

@@ -42,9 +42,12 @@ impl App {
         for (abs_idx, inv) in self.inventory.iter().enumerate().skip(scroll).take(PAGE) {
             let is_sel = abs_idx == selected;
             let cursor = if is_sel { "▶ " } else { "  " };
+            let is_dead = self.active_character.as_ref().map_or(false, |c| c.unit.health <= 0)
+                || self.party_members.iter().any(|m| m.unit.health <= 0);
             let can_use = match &inv.item.effect {
                 ItemEffect::Damage(_) => in_combat,
-                ItemEffect::Heal(_) | ItemEffect::FullHeal => true,
+                ItemEffect::Heal(_) | ItemEffect::MaxHpUp(_) => true,
+                ItemEffect::FullHeal => is_dead,
             };
             let charges_str = if inv.charges_remaining == -1 {
                 "∞".to_string()
@@ -55,6 +58,7 @@ impl App {
                 ItemEffect::Damage(d) => format!("{} dmg", d),
                 ItemEffect::Heal(h) => format!("heal {}", h),
                 ItemEffect::FullHeal => "full heal".to_string(),
+                ItemEffect::MaxHpUp(n) => format!("+{} max hp", n),
             };
 
             if is_sel {
@@ -83,6 +87,37 @@ impl App {
 
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
+            .bg(C_PANEL)
+            .render(inner, buf);
+    }
+
+    pub(crate) fn render_target_select(&self, area: Rect, buf: &mut Buffer, text_style: Style, selected: usize) {
+        let block = Block::default()
+            .title(Line::from(" Revive who? ").centered())
+            .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Confirm  [Esc] Back ").centered())
+            .borders(Borders::ALL)
+            .border_set(border::THICK)
+            .border_style(Style::default().fg(C_ACCENT))
+            .bg(C_PANEL);
+
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        let selected_style = Style::default().bg(C_ACCENT).fg(ratatui::style::Color::White);
+        let targets = self.dead_targets();
+
+        let mut lines: Vec<Line> = vec![Line::from("")];
+        for (idx, (_, name)) in targets.iter().enumerate() {
+            let cursor = if idx == selected { "▶ " } else { "  " };
+            let line = format!("{}{}", cursor, name);
+            if idx == selected {
+                lines.push(Line::from(Span::styled(line, selected_style)));
+            } else {
+                lines.push(Line::from(Span::styled(line, text_style)));
+            }
+        }
+
+        Paragraph::new(lines)
             .bg(C_PANEL)
             .render(inner, buf);
     }

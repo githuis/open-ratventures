@@ -1,0 +1,61 @@
+{
+  "id": "void_pilgrim",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat in the tattered remnants of pilgrim's robes walks in a perfect circle, eyes closed, lips moving. When you get close enough to hear, you catch the count: '...six thousand, four hundred and twelve. Six thousand, four hundred and thirteen.' They do not notice you. The circle they're walking is worn into the stone.",
+      "choices": [
+        {
+          "text": "Count along with them.",
+          "next": "counted",
+          "outcome": null
+        },
+        {
+          "text": "Break their concentration.",
+          "next": "broken",
+          "outcome": null
+        },
+        {
+          "text": "Walk on without disturbing them.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "counted": {
+      "text": "You fall into step, counting alongside. The pilgrim's pace slows. After several circuits they open their eyes and look at you, still walking, slightly surprised. 'You can hear the count,' they say. They reach into their robe and press something into your hand — coins, warm from being held so long — and something else, harder to name. 'Someone was here,' they say, as though this is enough. It might be.",
+      "choices": [
+        {
+          "text": "Take what they give and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 10,
+              "renown": 0,
+              "heal": 12
+            }
+          }
+        }
+      ]
+    },
+    "broken": {
+      "text": "You say something. The pilgrim stops mid-step. Their eyes open. For a moment they look completely lost — unmoored, somewhere between the count and the world. Then: 'I... yes. I was going somewhere.' They look at their worn groove in the stone. 'I've been going somewhere for a very long time.' They sit down heavily. After a moment, they hand you a small purse. 'I won't need this for the count.'",
+      "choices": [
+        {
+          "text": "Take the purse and continue.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 14,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["abyss"]
+}

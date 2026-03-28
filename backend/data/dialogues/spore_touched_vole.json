@@ -1,0 +1,104 @@
+{
+  "id": "spore_touched_vole",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A vole wanders into the passage ahead, trailing faint luminescent spores. Their fur is patchy with pale growth; their eyes are wide and very bright and tracking things you can't see. They stop when they notice you and tilt their head all the way to one side. 'Oh!' they say, with genuine delight. 'A new colour. Are you a mushroom or a visitor?'",
+      "choices": [
+        {
+          "text": "Play along. Tell them you're a very unusual mushroom.",
+          "next": "played_along",
+          "outcome": null
+        },
+        {
+          "text": "Speak calmly and try to reach the person beneath the spores.",
+          "next": "reached",
+          "outcome": null
+        },
+        {
+          "text": "Back away carefully.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        },
+        {
+          "text": "Attack before the spores reach you.",
+          "next": "fight",
+          "outcome": null
+        }
+      ]
+    },
+    "played_along": {
+      "text": "'I knew it!' The vole claps their hands. 'The tall kind, with the warm light. Those are the giving ones.' They rummage in a pouch at their side and press coins into your hand — probably the last of their real-world earnings. 'For your spores,' they say earnestly. Then they wander off, trailing light.",
+      "choices": [
+        {
+          "text": "Take the coins and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 9,
+              "renown": 0,
+              "heal": 5
+            }
+          }
+        }
+      ]
+    },
+    "reached": {
+      "text": "You speak slowly, carefully, naming things. The tunnel. The stone. Their name, if they remember it. For a moment the brightness in their eyes steadies. 'Oh,' they say, voice different now — smaller, older. 'I went too far in, didn't I.' It's not really a question. They press something into your hand — coins — before the focus slips again. 'Thank you for visiting,' they say warmly.",
+      "choices": [
+        {
+          "text": "Take the coins and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 6,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "fight": {
+      "text": "The vole's expression doesn't change. The spores, however, intensify — a cloud of them rising from their fur, glowing and wrong-smelling. 'Oh!' they say brightly. 'A conflict mushroom.'",
+      "choices": [
+        {
+          "text": "Fight the spore-touched vole.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 24,
+                    "energy": 15,
+                    "max_health": 24,
+                    "max_energy": 15
+                  },
+                  "name": "Spore-Touched Vole",
+                  "attack": 3,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Spore Cloud",
+                      "description": "Releases a burst of toxic luminescent spores.",
+                      "effect": {"Damage": 9},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["fungal_warrens"]
+}

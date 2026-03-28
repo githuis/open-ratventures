@@ -1,0 +1,97 @@
+{
+  "id": "bone_collector",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat moves slowly through the passage ahead, stooping to collect things from the floor and tuck them into a sack. Bones, you realise — small ones, finger-thin, worn smooth by water. They hear you and look up. The face is perfectly calm. 'Still warm,' they note, the same way someone might note the weather. 'I'll get to you eventually. Don't rush it.'",
+      "choices": [
+        {
+          "text": "Ask what they're building.",
+          "next": "building",
+          "outcome": null
+        },
+        {
+          "text": "Ask if they've seen anything dangerous ahead.",
+          "next": "warning",
+          "outcome": null
+        },
+        {
+          "text": "Attack them before they can do whatever it is they're planning.",
+          "next": "fight",
+          "outcome": null
+        }
+      ]
+    },
+    "building": {
+      "text": "They set the sack down and show you — a sphere of interlocked small bones, perfectly smooth, the size of a fist. 'Thirty-seven,' they say. 'I'm working toward forty. The last three are hard to find.' They look at your hands briefly, then back at the sphere. 'Not yet.' They fish a few coins from their pocket and hand them over. 'For your patience.'",
+      "choices": [
+        {
+          "text": "Take the coins and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 8,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "warning": {
+      "text": "'Three junctions ahead, there's a place where the rats travel in groups. They're territorial about the smell. Go along the right wall, not the left. The left is where they mark.' They return to their collecting. 'You'll probably be fine.'",
+      "choices": [
+        {
+          "text": "Thank them and take heed.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 6
+            }
+          }
+        }
+      ]
+    },
+    "fight": {
+      "text": "The bone collector doesn't look surprised. They set the sack down carefully — gently, even — and straighten up. 'All right,' they say. 'I suppose we move the schedule up.'",
+      "choices": [
+        {
+          "text": "Fight the bone collector.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 20,
+                    "energy": 10,
+                    "max_health": 20,
+                    "max_energy": 10
+                  },
+                  "name": "Bone Collector",
+                  "attack": 4,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Bone Shard",
+                      "description": "A sharpened finger bone, hurled with practiced accuracy.",
+                      "effect": {"Damage": 8},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewer_depths"]
+}

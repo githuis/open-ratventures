@@ -1,0 +1,83 @@
+{
+  "id": "ratling_toll",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "Two ratlings stand at a junction, arms crossed, blocking the main passage. A third watches from behind a pile of broken masonry. 'Toll point,' says the larger one. 'Coin to pass. Non-negotiable.' The smaller one cracks their knuckles, apparently practising. The one in the back picks its teeth with something pointed.",
+      "choices": [
+        {
+          "text": "Try to bluff your way through.",
+          "next": "bluffed",
+          "outcome": null
+        },
+        {
+          "text": "Attack without warning.",
+          "next": "fight",
+          "outcome": null
+        },
+        {
+          "text": "Turn back and find another route.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "bluffed": {
+      "text": "You give your most convincing account of being affiliated with someone much scarier than any of them. The large ratling squints. The small one stops cracking its knuckles. A long pause. 'Alright,' says the large one at last. 'But the toll booth's closed after midwatch anyway.' They step aside, slightly faster than they'd like you to notice. One of them drops a coin pouch while hurrying to look casual.",
+      "choices": [
+        {
+          "text": "Pocket the dropped coins and walk through.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 7,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "fight": {
+      "text": "They weren't expecting that. Neither were you, really, but here you are.",
+      "choices": [
+        {
+          "text": "Fight the toll collectors.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 14,
+                    "energy": 10,
+                    "max_health": 14,
+                    "max_energy": 10
+                  },
+                  "name": "Ratling Toll Collector",
+                  "attack": 3,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Brass Knuckles",
+                      "description": "Heavy, dented, and well-used.",
+                      "effect": {"Damage": 7},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewer_depths"]
+}

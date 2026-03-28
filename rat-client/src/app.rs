@@ -57,6 +57,7 @@ pub enum AppState {
     PartyLobby { parties: Vec<PartySummary> },
     AdventureMenu,
     Inventory { scroll: usize, selected: usize, previous: Box<AppState> },
+    TargetSelect { item_index: usize, target_selected: usize, inv_scroll: usize, inv_item_selected: usize, return_to: Box<AppState> },
 }
 
 impl Default for AppState {
@@ -131,13 +132,26 @@ impl App {
                         self.state = AppState::Inventory { scroll: new_scroll, selected: new_sel, previous };
                     }
                     KeyCode::Enter => {
+                        let is_dead = self.active_character.as_ref().map_or(false, |c| c.unit.health <= 0)
+                            || self.party_members.iter().any(|m| m.unit.health <= 0);
                         let can_use = self.inventory.get(selected).map(|i| {
                             match &i.item.effect {
                                 ItemEffect::Damage(_) => matches!(*previous, AppState::Combat),
-                                ItemEffect::Heal(_) | ItemEffect::FullHeal => true,
+                                ItemEffect::Heal(_) | ItemEffect::MaxHpUp(_) => true,
+                                ItemEffect::FullHeal => is_dead,
                             }
                         }).unwrap_or(false);
-                        if can_use {
+                        let is_full_heal = self.inventory.get(selected)
+                            .map_or(false, |i| matches!(i.item.effect, ItemEffect::FullHeal));
+                        if can_use && is_full_heal {
+                            self.state = AppState::TargetSelect {
+                                item_index: selected,
+                                target_selected: 0,
+                                inv_scroll: scroll,
+                                inv_item_selected: selected,
+                                return_to: previous,
+                            };
+                        } else if can_use {
                             self.state = *previous;
                             self.use_item(selected);
                         } else {
@@ -149,6 +163,59 @@ impl App {
                     }
                     _ => {
                         self.state = AppState::Inventory { scroll, selected, previous };
+                    }
+                }
+            }
+            return Ok(());
+        }
+
+        if matches!(&self.state, AppState::TargetSelect { .. }) {
+            if let AppState::TargetSelect { item_index, target_selected, inv_scroll, inv_item_selected, return_to } =
+                std::mem::replace(&mut self.state, AppState::Main)
+            {
+                let targets = self.dead_targets();
+                let target_count = targets.len();
+                match key_event.code {
+                    KeyCode::Char('j') | KeyCode::Char('s') | KeyCode::Down => {
+                        self.state = AppState::TargetSelect {
+                            item_index,
+                            target_selected: (target_selected + 1).min(target_count.saturating_sub(1)),
+                            inv_scroll,
+                            inv_item_selected,
+                            return_to,
+                        };
+                    }
+                    KeyCode::Char('k') | KeyCode::Char('w') | KeyCode::Up => {
+                        self.state = AppState::TargetSelect {
+                            item_index,
+                            target_selected: target_selected.saturating_sub(1),
+                            inv_scroll,
+                            inv_item_selected,
+                            return_to,
+                        };
+                    }
+                    KeyCode::Enter => {
+                        if let Some((user_id, _)) = targets.get(target_selected) {
+                            let user_id = *user_id;
+                            self.apply_full_heal_to_target(item_index, user_id);
+                        }
+                        self.state = *return_to;
+                    }
+                    KeyCode::Esc => {
+                        self.state = AppState::Inventory {
+                            scroll: inv_scroll,
+                            selected: inv_item_selected,
+                            previous: return_to,
+                        };
+                    }
+                    _ => {
+                        self.state = AppState::TargetSelect {
+                            item_index,
+                            target_selected,
+                            inv_scroll,
+                            inv_item_selected,
+                            return_to,
+                        };
                     }
                 }
             }
@@ -612,20 +679,24 @@ impl App {
                                 .map(|c| c.character.coins as i32)
                                 .unwrap_or(0);
                             // block if this choice is locked (direct outcome or read-ahead)
+                            let outcome_costs_more_than = |outcome: &DialogueOutcome| match outcome {
+                                DialogueOutcome::GiveItem { cost, .. } => coins < *cost,
+                                DialogueOutcome::Reward { coins: c, .. } => *c < 0 && coins < c.unsigned_abs() as i32,
+                                _ => false,
+                            };
                             let locked = match &choice.outcome {
-                                Some(DialogueOutcome::GiveItem { cost, .. }) => coins < *cost,
+                                Some(outcome) => outcome_costs_more_than(outcome),
                                 None => {
                                     if let Some(next_id) = &choice.next {
                                         if let Some(next_node) = dialogue.nodes.get(next_id.as_str()) {
                                             !next_node.choices.is_empty()
                                                 && next_node.choices.iter().all(|c| match &c.outcome {
-                                                    Some(DialogueOutcome::GiveItem { cost, .. }) => coins < *cost,
+                                                    Some(outcome) => outcome_costs_more_than(outcome),
                                                     _ => false,
                                                 })
                                         } else { false }
                                     } else { false }
                                 }
-                                _ => false,
                             };
                             if locked { return; }
                             (choice.next.clone(), choice.outcome.clone())
@@ -837,6 +908,18 @@ impl App {
                     let _ = self.client.update_character_unit(uid, &unit);
                 }
             }
+            ItemEffect::MaxHpUp(amount) => {
+                let amount = *amount;
+                if let Some(c) = self.active_character.as_mut() {
+                    c.unit.max_health += amount;
+                    c.unit.health = (c.unit.health + amount).min(c.unit.max_health);
+                }
+                if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
+                    let uid = user.id;
+                    let unit = c.unit;
+                    let _ = self.client.update_character_unit(uid, &unit);
+                }
+            }
         }
 
         // consume one charge and re-sync from server
@@ -853,6 +936,51 @@ impl App {
         }
         if encounter_cleared {
             self.check_current_encounter();
+        }
+    }
+
+    pub fn dead_targets(&self) -> Vec<(i32, String)> {
+        let mut targets = vec![];
+        if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
+            if c.unit.health <= 0 {
+                targets.push((user.id, c.character.name.clone()));
+            }
+        }
+        for m in &self.party_members {
+            if m.unit.health <= 0 {
+                targets.push((m.character.user_id, m.character.name.clone()));
+            }
+        }
+        targets
+    }
+
+    fn apply_full_heal_to_target(&mut self, item_index: usize, target_user_id: i32) {
+        let active_user_id = self.active_user.as_ref().map(|u| u.id);
+        if active_user_id == Some(target_user_id) {
+            if let Some(c) = self.active_character.as_mut() {
+                c.unit.health = c.unit.max_health;
+                let unit = c.unit;
+                let _ = self.client.update_character_unit(target_user_id, &unit);
+            }
+        } else {
+            for m in &mut self.party_members {
+                if m.character.user_id == target_user_id {
+                    m.unit.health = m.unit.max_health;
+                    let unit = m.unit;
+                    let _ = self.client.update_character_unit(target_user_id, &unit);
+                    break;
+                }
+            }
+        }
+        let inv_item = self.inventory.get(item_index).cloned();
+        if let Some(inv_item) = inv_item {
+            if inv_item.item.charges != -1 {
+                if let Some(user) = &self.active_user {
+                    let uid = user.id;
+                    let _ = self.client.delete_character_item(uid, inv_item.item.id);
+                    self.inventory = self.client.get_character_items(uid).unwrap_or_default();
+                }
+            }
         }
     }
 }
@@ -921,6 +1049,15 @@ impl Widget for &App {
                 Clear::default().render(rect, buf);
                 let in_combat = matches!(**previous, AppState::Combat);
                 self.render_inventory_popup(rect, buf, text_style, *scroll, *selected, in_combat);
+            }
+            AppState::TargetSelect { target_selected, .. } => {
+                let popup_width = 40.min(area.width.saturating_sub(4));
+                let popup_height = 10.min(area.height.saturating_sub(4));
+                let popup_x = area.x + (area.width.saturating_sub(popup_width)) / 2;
+                let popup_y = area.y + (area.height.saturating_sub(popup_height)) / 2;
+                let rect = Rect::new(popup_x, popup_y, popup_width, popup_height);
+                Clear::default().render(rect, buf);
+                self.render_target_select(rect, buf, text_style, *target_selected);
             }
             _ => {}
         }

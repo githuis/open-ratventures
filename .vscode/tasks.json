@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Backend",
+      "type": "shell",
+      "command": "cargo run",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Client",
+      "type": "shell",
+      "command": "cargo run",
+      "options": {
+        "cwd": "${workspaceFolder}/rat-client"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Run rats",
+      "dependsOn": [
+        "Run Backend",
+        "Run Client"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}

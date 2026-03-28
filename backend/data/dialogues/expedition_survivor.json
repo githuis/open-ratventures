@@ -1,0 +1,61 @@
+{
+  "id": "expedition_survivor",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A mouse sits with their back to a fungal column, knees drawn up. They're dressed in the kind of gear that suggests someone planned and packed and believed they knew what they were getting into — all of it torn, most of it stained. They look up when you approach. Their eyes are fine; the rest of their face is the face of someone who has recently revised several important beliefs. 'The rest of them didn't make it back up,' they say. 'I've been sitting here deciding whether to try.'",
+      "choices": [
+        {
+          "text": "Ask what happened.",
+          "next": "story",
+          "outcome": null
+        },
+        {
+          "text": "Offer to guide them back to the surface.",
+          "next": "guided",
+          "outcome": null
+        },
+        {
+          "text": "Leave them to decide on their own.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "story": {
+      "text": "They tell you. It takes a while. By the end they seem steadier — as though the weight of it distributed a little, now that it's been said aloud. 'The expedition leader had maps from a surveyor guild. Good maps. The problem wasn't the maps.' They stop. 'You can go. You didn't need to listen to that. Thank you for doing it anyway.'",
+      "choices": [
+        {
+          "text": "Wish them well.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 10
+            }
+          }
+        }
+      ]
+    },
+    "guided": {
+      "text": "They get up without hesitating — they were waiting for someone to make the decision with them. The walk back through the warrens is quiet but not uncomfortable. At the first junction they recognise, they stop and press a purse into your hands. 'The expedition fund. There's no expedition anymore.' They don't wait for you to argue.",
+      "choices": [
+        {
+          "text": "Take the payment.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 14,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["fungal_warrens"]
+}

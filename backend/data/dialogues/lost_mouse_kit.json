@@ -1,0 +1,61 @@
+{
+  "id": "lost_mouse_kit",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A small mouse — young, barely past kit-age — is huddled against a wet wall, clutching a piece of string tied into a bracelet. They look up when they hear you, ears flat, eyes bright with held-back tears. 'I went too far,' they say. 'I can't find the way back up.'",
+      "choices": [
+        {
+          "text": "Take the time to guide them back toward the surface.",
+          "next": "guided",
+          "outcome": null
+        },
+        {
+          "text": "Give them a kind word and point the way.",
+          "next": "pointed",
+          "outcome": null
+        },
+        {
+          "text": "You don't have time. Walk on.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "guided": {
+      "text": "It takes a while. The kit talks the whole way — about their mother, their three brothers, a rat named Pip who once stole their lunch. By the time you see the light from the upper grates, a guard rat is waiting with frantic eyes. She presses coins into your hand before you can speak, already kneeling in front of the kit.",
+      "choices": [
+        {
+          "text": "Take the coins and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 8,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "pointed": {
+      "text": "The kit looks at where you're pointing, then back at you. 'That way?' 'That way.' They take a deep breath, clutch their string bracelet, and scurry off without looking back. You watch until they're out of sight. Something in your chest feels easier.",
+      "choices": [
+        {
+          "text": "Continue on your way.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 5
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewers"]
+}

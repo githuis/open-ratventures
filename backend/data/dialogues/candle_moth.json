@@ -1,0 +1,59 @@
+{
+  "id": "candle_moth",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "The abyss is very dark. Then it isn't — a faint warm light, moving with a moth's uncertain drift. It's large, for a moth, and seems more present than the things around it — more solid, more real. The flame it carries isn't on a candle. It simply holds it, cupped between its forelegs, and the light stays lit. It pauses when it notices you.",
+      "choices": [
+        {
+          "text": "Follow the moth.",
+          "next": "followed",
+          "outcome": null
+        },
+        {
+          "text": "Try to capture the moth and keep the flame.",
+          "next": "captured",
+          "outcome": null
+        },
+        {
+          "text": "Let it pass.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "followed": {
+      "text": "The moth doesn't hurry. It drifts through passages that are less frightening by lamplight — the dark becomes just dark, the shapes become just stone. When it finally rises through a crack in the ceiling and disappears, you realise you feel warmer than you did, and lighter. The flame, wherever it's going, did something just by being near.",
+      "choices": [
+        {
+          "text": "Continue on your way.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 22
+            }
+          }
+        }
+      ]
+    },
+    "captured": {
+      "text": "Your hands close around it. The light goes out. Not dims — out, all at once, absolute. In the dark something moves against your palms that isn't the moth, and isn't warm, and knows where you are. You open your hands. The moth is gone.",
+      "choices": [
+        {
+          "text": "Pull back and keep moving.",
+          "next": null,
+          "outcome": {
+            "Damage": {
+              "amount": 15
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["abyss"]
+}

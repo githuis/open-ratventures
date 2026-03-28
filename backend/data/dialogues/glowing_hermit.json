@@ -1,0 +1,66 @@
+{
+  "id": "glowing_hermit",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A mole in a patched robe sits cross-legged before a cluster of faintly luminous mushrooms, each one a different shade of cold light. They hear you coming long before you arrive. 'Close enough,' they say, without turning around. 'Don't touch the blue caps. The yellow ones are fine. The ones with the red spots are complicated.'",
+      "choices": [
+        {
+          "text": "Ask what the blue caps do.",
+          "next": "blue_caps",
+          "outcome": null
+        },
+        {
+          "text": "Ask if they have anything to share.",
+          "next": "share",
+          "outcome": null
+        },
+        {
+          "text": "Note the warning and move on.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "blue_caps": {
+      "text": "'The blue caps,' the mole says, 'dissolve the membrane between knowing and feeling. For about an hour. Most people find it distressing.' They pause. 'One person found it wonderful. She kept coming back. I haven't seen her in three months.' Another pause. 'Don't eat the blue caps.'",
+      "choices": [
+        {
+          "text": "Eat one anyway.",
+          "next": null,
+          "outcome": {
+            "Damage": {
+              "amount": 10
+            }
+          }
+        },
+        {
+          "text": "Heed the warning and back away.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "share": {
+      "text": "The mole nods slowly, reaches into their robe, and produces a small clay cup. They pour something from a stoppered flask — it steams, and smells of damp stone and something floral. 'Cave moss tea. Settles the nerves. Keeps the spores from getting into you too deep.' You drink it. It works.",
+      "choices": [
+        {
+          "text": "Thank them and continue.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 14
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewer_depths"]
+}

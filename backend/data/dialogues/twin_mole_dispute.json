@@ -1,0 +1,126 @@
+{
+  "id": "twin_mole_dispute",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "Two moles are standing nose to nose in the middle of the passage, gesturing at a dense cluster of glowing mushrooms in the alcove behind them. They appear identical — same patchy grey fur, same scarred snout — and they are shouting in perfect synchrony except for the content. 'My grandmother planted those!' 'My grandmother planted those!' They both stop and turn to you at the same moment. 'Tell them,' they say simultaneously.",
+      "choices": [
+        {
+          "text": "Offer to mediate properly.",
+          "next": "mediated",
+          "outcome": null
+        },
+        {
+          "text": "Suggest they simply split the patch evenly.",
+          "next": "split",
+          "outcome": null
+        },
+        {
+          "text": "Declare that you're claiming the mushrooms yourself.",
+          "next": "claimed",
+          "outcome": null
+        },
+        {
+          "text": "Back away before this becomes your problem.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "mediated": {
+      "text": "It takes some time, several diagrams drawn in tunnel grime, and one near-relapse when they almost resume shouting over what 'half' means. But eventually both moles shake hands with the stiff dignity of the recently reconciled. One of them presses coins on you. The other, not to be outdone, does the same.",
+      "choices": [
+        {
+          "text": "Accept the payment from both.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 11,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "split": {
+      "text": "Both moles look at you. 'Split,' one says slowly. 'Like... half and half.' 'Half and half,' says the other. They look at each other. 'We... didn't consider that.' A long pause. 'That's actually—' 'Yes.' 'Right.' They both nod, then look at you with identical expressions of sheepish gratitude.",
+      "choices": [
+        {
+          "text": "Take their thanks and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 8
+            }
+          }
+        }
+      ]
+    },
+    "claimed": {
+      "text": "Both moles stop. Look at each other. Look at you. 'No,' they say, in complete unison, for the first time. They roll up their sleeves, also in unison.",
+      "choices": [
+        {
+          "text": "Fight the twin moles.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 22,
+                    "energy": 10,
+                    "max_health": 22,
+                    "max_energy": 10
+                  },
+                  "name": "Left Mole",
+                  "attack": 4,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Mushroom Spade",
+                      "description": "A short-handled harvesting tool, swung with surprising conviction.",
+                      "effect": {"Damage": 9},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                },
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 22,
+                    "energy": 10,
+                    "max_health": 22,
+                    "max_energy": 10
+                  },
+                  "name": "Right Mole",
+                  "attack": 4,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Mushroom Spade",
+                      "description": "A short-handled harvesting tool, swung with surprising conviction.",
+                      "effect": {"Damage": 9},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["fungal_warrens"]
+}

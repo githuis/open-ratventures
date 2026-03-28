@@ -1,0 +1,104 @@
+{
+  "id": "drowned_merchant",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "There is a stall here. There should not be a stall here — the passage doesn't allow for it, the stone doesn't suggest commerce — but there it is, neatly arranged, lit by no visible source. Behind it stands a rat in a merchant's apron, perfectly preserved, expression professionally pleasant. 'Good timing,' they say. 'The inventory must move. Everything must go.' Their eyes don't quite focus on anything present.",
+      "choices": [
+        {
+          "text": "Ask what the prices are.",
+          "next": "prices",
+          "outcome": null
+        },
+        {
+          "text": "Ask how long they've been here.",
+          "next": "how_long",
+          "outcome": null
+        },
+        {
+          "text": "Destroy the stall.",
+          "next": "fight",
+          "outcome": null
+        },
+        {
+          "text": "Back away carefully.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "prices": {
+      "text": "The merchant considers. 'For this one: a memory you don't use often. For this one: an hour you won't notice missing. For this one—' They stop. Look down. There are coins in your hand that weren't there before. 'Apparently you've already paid,' they say, sounding faintly surprised. 'Transaction complete.' They begin restocking, facing the wrong direction.",
+      "choices": [
+        {
+          "text": "Take the coins and leave quickly.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 12,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "how_long": {
+      "text": "'Since before the before,' they say. Then: 'No. Since the fourth day.' They look uncertain. 'Since—' They stop. Something behind their eyes flickers. 'I was on my way to the market at Thornwater,' they say, softly and clearly. 'I was bringing sample stock.' A pause. 'Is the market still there?' You find you don't know what to say. The uncertainty seems to help them, somehow. You feel clearer for having said nothing.",
+      "choices": [
+        {
+          "text": "Leave them with their uncertainty.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 12
+            }
+          }
+        }
+      ]
+    },
+    "fight": {
+      "text": "The stall falls. The merchant watches it fall with that same professional pleasantness. 'Returns policy,' they say. Something shifts in the dark around them — a pressure, a weight. 'Processing.'",
+      "choices": [
+        {
+          "text": "Fight the drowned merchant.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 44,
+                    "energy": 20,
+                    "max_health": 44,
+                    "max_energy": 20
+                  },
+                  "name": "Drowned Merchant",
+                  "attack": 6,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Ghostly Grasp",
+                      "description": "Reaches through the present into somewhere colder.",
+                      "effect": {"Damage": 11},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["abyss"]
+}

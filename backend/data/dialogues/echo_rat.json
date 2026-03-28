@@ -1,0 +1,59 @@
+{
+  "id": "echo_rat",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat sits in the centre of the passage, very still. When you step, it steps — but the timing is wrong, slightly ahead, as though the sound of your movement arrived before you made it. When you stop, it stops. It has your posture, but wrong in a way you can't immediately identify. It says something — your last spoken word, but fractured, turned upside down.",
+      "choices": [
+        {
+          "text": "Try to speak to it.",
+          "next": "spoken",
+          "outcome": null
+        },
+        {
+          "text": "Walk past without engaging.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        },
+        {
+          "text": "Touch it.",
+          "next": "touched",
+          "outcome": null
+        }
+      ]
+    },
+    "spoken": {
+      "text": "You speak. It listens. When you finish, it speaks back — your words, assembled differently, pointing at something you hadn't meant to say. The meaning doesn't quite resolve. When it finishes, something falls from its paw onto the ground: coins, cold and slightly too heavy. It says nothing else. You find you can move past without difficulty.",
+      "choices": [
+        {
+          "text": "Take the coins.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 10,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "touched": {
+      "text": "Your hand passes through the space where it was. But the cold doesn't pass through you — it stays, settling into your fingers, climbing your arm. For a moment you understand something about the abyss that you immediately, involuntarily, forget. What remains is the cold.",
+      "choices": [
+        {
+          "text": "Pull back and continue.",
+          "next": null,
+          "outcome": {
+            "Damage": {
+              "amount": 14
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["abyss"]
+}

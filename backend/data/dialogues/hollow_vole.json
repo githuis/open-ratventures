@@ -1,0 +1,104 @@
+{
+  "id": "hollow_vole",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "Something is sitting in the dark ahead. It takes you a moment to realise it's a vole — or was. Its fur has gone the colour of ash, its eyes are two pale smears of light with nothing behind them. It is very still. When it speaks, the sound comes from somewhere slightly off from where its mouth is moving.\n\n'You're still warm,' it says. 'I can tell.'",
+      "choices": [
+        {
+          "text": "Ask what happened to it.",
+          "next": "what_happened",
+          "outcome": null
+        },
+        {
+          "text": "Keep your distance and move on.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        },
+        {
+          "text": "Attack it.",
+          "next": "fight",
+          "outcome": null
+        }
+      ]
+    },
+    "what_happened": {
+      "text": "'Stayed too long,' it says. 'The abyss doesn't take you all at once. It's very patient.' It tilts its head, studying you. 'You have a long way to go yet. Here.' It presses something cold into your hand — coins, you think, though they feel wrong in your palm. 'Spend them somewhere that still has light.'",
+      "choices": [
+        {
+          "text": "Take the coins and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 12,
+              "renown": 0
+            }
+          }
+        },
+        {
+          "text": "Refuse and walk away.",
+          "next": "refused",
+          "outcome": null
+        }
+      ]
+    },
+    "refused": {
+      "text": "The vole watches the coins fall back into the dark. 'Wise,' it murmurs. It sounds almost impressed — or envious. You can't tell which.",
+      "choices": [
+        {
+          "text": "Leave.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 5
+            }
+          }
+        }
+      ]
+    },
+    "fight": {
+      "text": "It doesn't flinch. 'Of course,' it says softly, and stands — taller than it should be, shadow pooling at its feet like something spilled. 'Everything that comes here eventually does.'",
+      "choices": [
+        {
+          "text": "Fight the hollow vole.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 60,
+                    "energy": 30,
+                    "max_health": 60,
+                    "max_energy": 30
+                  },
+                  "name": "Hollow Vole",
+                  "attack": 7,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Void Drain",
+                      "description": "Pulls warmth from the living.",
+                      "effect": {"Damage": 10},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": [
+    "abyss"
+  ]
+}

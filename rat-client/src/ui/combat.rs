@@ -74,6 +74,7 @@ impl App {
                     ItemEffect::FullHeal => "full heal".to_string(),
                     ItemEffect::Damage(d) => format!("{} dmg", d),
                     ItemEffect::Heal(h) => format!("heal {}", h),
+                    ItemEffect::MaxHpUp(n) => format!("+{} max hp", n),
                 };
                 lines.push(Line::from(vec![
                     format!(" [{}] {} ({}) — ", i + 1, inv.item.name, if inv.charges_remaining == -1 { "∞".to_string() } else { format!("x{}", inv.charges_remaining) }).into(),

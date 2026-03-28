@@ -1,0 +1,83 @@
+{
+  "id": "fortune_rat",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "An ancient rat sits wrapped in layers of faded silk, eyes obscured by a blindfold of woven hair. She has arranged twelve finger-bones on the ground in front of her in a pattern that almost makes sense. 'Ah,' she says, before you've made a sound. 'A warm one. Uncertain of outcome. You may sit.'",
+      "choices": [
+        {
+          "text": "Sit and accept the reading.",
+          "next": "reading",
+          "outcome": null
+        },
+        {
+          "text": "Demand a straight answer, no theatre.",
+          "next": "angered",
+          "outcome": null
+        },
+        {
+          "text": "Decline politely and continue.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "reading": {
+      "text": "She speaks for a long time. You understand perhaps a third of it. The words don't add up to meaning — but something about the cadence settles your breathing, unknots your shoulders. You feel, obscurely, better prepared. She says nothing when you rise to leave.",
+      "choices": [
+        {
+          "text": "Thank her and go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 10
+            }
+          }
+        }
+      ]
+    },
+    "angered": {
+      "text": "'Straight answers,' she says, 'are for those who can bear them.' She rises — faster than she should — and the finger-bones scatter. 'You asked.'",
+      "choices": [
+        {
+          "text": "Fight the fortune rat.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 14,
+                    "energy": 10,
+                    "max_health": 14,
+                    "max_energy": 10
+                  },
+                  "name": "Fortune Rat",
+                  "attack": 3,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Bone Scatter",
+                      "description": "Hurls the reading bones with unerring aim.",
+                      "effect": {"Damage": 7},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewers"]
+}

@@ -16,7 +16,7 @@
           "outcome": {
             "Reward": {
               "coins": 0,
-              "renown": 5
+              "renown": 2
             }
           }
         }
@@ -26,11 +26,11 @@
       "text": "You eat the cheese. It tastes exactly like it smells. Your vision swims briefly. Worth it? Unclear.",
       "choices": [
         {
-          "text": "Regroup and move on.",
+          "text": "Try to keep the vomit down and move on.",
           "next": null,
           "outcome": {
             "Damage": {
-              "amount": 10
+              "amount": 6
             }
           }
         }

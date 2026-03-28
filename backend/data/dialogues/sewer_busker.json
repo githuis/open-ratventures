@@ -1,0 +1,83 @@
+{
+  "id": "sewer_busker",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat sits cross-legged on an upturned pail, sawing at a fiddle with a bow made of stripped wire. The music echoes strangely in the tunnel — too melancholy for the dripping dark. A battered hat sits in the slick water at their feet, empty. They don't look up.",
+      "choices": [
+        {
+          "text": "Stop and listen to the whole song.",
+          "next": "listened",
+          "outcome": null
+        },
+        {
+          "text": "Tell them to keep it down.",
+          "next": "offended",
+          "outcome": null
+        },
+        {
+          "text": "Pass without a word.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "listened": {
+      "text": "The song winds down to a single long note that hangs in the dark and fades. The rat lowers the bow and looks at you at last — small eyes, red-rimmed. 'Thank you,' they say. 'Most don't stop.' Something in you feels lighter than it did.",
+      "choices": [
+        {
+          "text": "Nod and continue on your way.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 0,
+              "renown": 0,
+              "heal": 8
+            }
+          }
+        }
+      ]
+    },
+    "offended": {
+      "text": "The music stops. The rat turns to look at you with a stillness that is more unsettling than anger. 'I have been playing this tunnel for eleven years,' they say, very quietly. 'No one tells me to stop.' They stand, bow raised.",
+      "choices": [
+        {
+          "text": "Fight the busker.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 10,
+                    "energy": 10,
+                    "max_health": 10,
+                    "max_energy": 10
+                  },
+                  "name": "Sewer Busker",
+                  "attack": 2,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Wire Bow",
+                      "description": "A fiddle bow repurposed as a weapon. Stings.",
+                      "effect": {"Damage": 5},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewers"]
+}

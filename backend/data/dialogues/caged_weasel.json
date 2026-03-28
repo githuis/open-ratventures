@@ -1,0 +1,83 @@
+{
+  "id": "caged_weasel",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rusted cage hangs from the low ceiling by a chain, swinging slightly. Inside, a weasel in a very fine but very ruined waistcoat is pressed against the bars. 'You — you're not Brackenfang,' it says, voice dropping to a hiss. 'Listen. I was caught lifting from the wrong cache. They'll be back. Get me out of this and I'll make it worth your while. I have coin hidden. A lot of it.'",
+      "choices": [
+        {
+          "text": "Pick the lock and free them.",
+          "next": "freed",
+          "outcome": null
+        },
+        {
+          "text": "Tell them you'll inform the ratlings — for a cut.",
+          "next": "betrayed",
+          "outcome": null
+        },
+        {
+          "text": "Leave them to their fate.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "freed": {
+      "text": "The lock takes a moment but gives. The weasel drops down, straightens their ruined waistcoat with tremendous dignity, and leads you to a loose stone in the far wall. Behind it: a cloth bag, coins inside. 'As promised. Now I'd like to leave quickly and never speak of this.'",
+      "choices": [
+        {
+          "text": "Take your cut and let them go.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 13,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "betrayed": {
+      "text": "The weasel's eyes go flat. There's a crack and a snap — they've been working the cage lock from inside the whole time. The door swings open. 'I was going to give you a third,' they say, dropping to the ground. 'Now you get nothing but the lesson.'",
+      "choices": [
+        {
+          "text": "Fight the weasel.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 18,
+                    "energy": 10,
+                    "max_health": 18,
+                    "max_energy": 10
+                  },
+                  "name": "Caged Weasel",
+                  "attack": 4,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Lockpick Shiv",
+                      "description": "A modified lockpick, surprisingly effective as a blade.",
+                      "effect": {"Damage": 8},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewer_depths"]
+}

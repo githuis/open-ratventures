@@ -1,0 +1,83 @@
+{
+  "id": "wounded_ratling",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A ratling is slumped against the wall of a side passage, one paw pressed to its side. Its armour — scraps of bent tin and strap leather — is cracked down the middle. It looks up at you with eyes that are weighing something. 'Not with the Brackenfangs,' it says. It's not a question.",
+      "choices": [
+        {
+          "text": "Tend to their wounds.",
+          "next": "tended",
+          "outcome": null
+        },
+        {
+          "text": "Demand to know where their gang is.",
+          "next": "provoked",
+          "outcome": null
+        },
+        {
+          "text": "Leave them where they lie.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "tended": {
+      "text": "You spend some time on the wound — it's bad but not fatal. When you're done the ratling sits quietly for a moment. 'There's a cache behind the third pipe junction back that way. Kept it from the Fangs. It's yours.' It says nothing else.",
+      "choices": [
+        {
+          "text": "Go find the cache.",
+          "next": null,
+          "outcome": {
+            "Reward": {
+              "coins": 11,
+              "renown": 0,
+              "heal": 0
+            }
+          }
+        }
+      ]
+    },
+    "provoked": {
+      "text": "The ratling's expression shifts from worn to cold. 'Wrong question.' Despite the wound, it moves fast.",
+      "choices": [
+        {
+          "text": "Fight the wounded ratling.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 16,
+                    "energy": 10,
+                    "max_health": 16,
+                    "max_energy": 10
+                  },
+                  "name": "Wounded Ratling",
+                  "attack": 3,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Tin Shard",
+                      "description": "A jagged piece of broken armour, repurposed.",
+                      "effect": {"Damage": 7},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": ["sewer_depths"]
+}

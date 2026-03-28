@@ -1,0 +1,84 @@
+{
+  "id": "distressed_mole",
+  "start": "approach",
+  "nodes": {
+    "approach": {
+      "text": "A mole sits hunched against the cavern wall, wrapped tightly in a tattered cloak. A large bottle glows faintly at his side. He looks up with red-rimmed eyes. 'Please... I lost everything in the lower tunnels. My cart, my tools — gone. All I have left is this tonic. I brewed it myself. It's worth ten times what I'm asking. Fourteen coins and it's yours. I just need to get my family out of here.'",
+      "choices": [
+        {
+          "text": "Pay 14 coins for the Mole's Endurance Tonic.",
+          "next": "sold",
+          "outcome": null
+        },
+        {
+          "text": "Grab the bottle while he's distracted.",
+          "next": "caught",
+          "outcome": null
+        },
+        {
+          "text": "Leave him alone.",
+          "next": null,
+          "outcome": {
+            "NextEncounter": null
+          }
+        }
+      ]
+    },
+    "sold": {
+      "text": "He exhales slowly, eyes glistening. 'You're a good soul. Bless you.' He places the bottle in your hands with trembling care, then gathers himself and heads deeper into the warren.",
+      "choices": [
+        {
+          "text": "Take the tonic.",
+          "next": null,
+          "outcome": {
+            "GiveItem": {
+              "item_name": "Mole's Endurance Tonic",
+              "cost": 14
+            }
+          }
+        }
+      ]
+    },
+    "caught": {
+      "text": "You reach for the bottle — and the mole explodes upright with a roar that echoes off the stone walls. 'NOT TODAY!' His grief transforms into fury. He snatches the bottle back and plants his feet, claws spread wide.",
+      "choices": [
+        {
+          "text": "Fight the mole.",
+          "next": null,
+          "outcome": {
+            "Combat": {
+              "monsters": [
+                {
+                  "unit": {
+                    "id": 0,
+                    "ref_id": 0,
+                    "health": 22,
+                    "energy": 10,
+                    "max_health": 22,
+                    "max_energy": 10
+                  },
+                  "name": "Distressed Mole",
+                  "attack": 4,
+                  "items": [
+                    {
+                      "id": 0,
+                      "name": "Acid Splash",
+                      "description": "Hurls a vial of corrosive brew.",
+                      "effect": {"Damage": 8},
+                      "charges": 2
+                    }
+                  ],
+                  "areas": []
+                }
+              ],
+              "turn": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "areas": [
+    "fungal_warrens"
+  ]
+}

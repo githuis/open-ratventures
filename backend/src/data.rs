@@ -75,6 +75,7 @@ pub enum ItemEffect {
     Damage(i32),
     Heal(i32),
     FullHeal,
+    MaxHpUp(i32),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
