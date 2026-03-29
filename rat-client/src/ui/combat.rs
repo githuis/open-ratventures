@@ -6,8 +6,8 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
-use ratback::data::ItemEffect;
-use ratback::quest_data::Encounter;
+use ratback_types::data::ItemEffect;
+use ratback_types::quest_data::Encounter;
 
 use crate::app::App;
 use crate::ui::{C_ALERT, C_ACCENT, C_BG};

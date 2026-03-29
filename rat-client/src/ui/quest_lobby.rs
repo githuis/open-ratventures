@@ -6,7 +6,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
-use ratback::quest_data::PartySummary;
+use ratback_types::quest_data::PartySummary;
 
 use crate::app::App;
 use crate::ui::{C_ACCENT, C_PANEL};

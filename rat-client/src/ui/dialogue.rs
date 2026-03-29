@@ -6,7 +6,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
-use ratback::quest_data::{Dialogue, DialogueOutcome};
+use ratback_types::quest_data::{Dialogue, DialogueOutcome};
 
 use crate::app::App;
 use crate::ui::{C_ACCENT, C_BG};
@@ -32,7 +32,7 @@ impl App {
 
         let coins = self.active_character.as_ref().map(|c| c.character.coins as i32).unwrap_or(0);
 
-        let choice_locked = |choice: &ratback::quest_data::DialogueChoice| -> bool {
+        let choice_locked = |choice: &ratback_types::quest_data::DialogueChoice| -> bool {
             match &choice.outcome {
                 Some(DialogueOutcome::GiveItem { cost, .. }) => coins < *cost,
                 None => {

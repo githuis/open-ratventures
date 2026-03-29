@@ -6,7 +6,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
-use ratback::{data::MAX_ENCOUNTER_LENGTH, quest_data::Encounter};
+use ratback_types::{data::MAX_ENCOUNTER_LENGTH, quest_data::Encounter};
 
 use crate::app::App;
 use crate::ui::{C_TEXT, C_ACCENT, C_PANEL};

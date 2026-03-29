@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use ratback::{data::{CharacterWrapper, InventoryItem, ShopItem, User}, quest_data::{Dialogue, Party, PartySummary, Quest, QuestSummary}};
+use ratback_types::{data::{CharacterWrapper, InventoryItem, ShopItem, User}, quest_data::{Dialogue, Party, PartySummary, Quest, QuestSummary}};
 use reqwest::blocking::Client;
 
 const DEFAULT_HOST: &str = "http://localhost:3000/api/";
@@ -54,7 +54,7 @@ impl Rattp {
         Ok(serde_json::from_str(&response)?)
     }
 
-    pub fn update_character_unit(&self, user_id: i32, unit: &ratback::data::Unit) -> Result<(), Box<dyn Error>> {
+    pub fn update_character_unit(&self, user_id: i32, unit: &ratback_types::data::Unit) -> Result<(), Box<dyn Error>> {
         self.http.put(self.destination(&format!("character/{user_id}/unit"))).json(unit).send()?;
         Ok(())
     }
@@ -141,7 +141,7 @@ impl Rattp {
         Ok(serde_json::from_str(&response)?)
     }
 
-    pub fn put_encounters(&self, quest_id: i32, current_encounter: i32, current_node_id: Option<&str>, encounters: &Vec<ratback::quest_data::Encounter>) -> Result<(), Box<dyn Error>> {
+    pub fn put_encounters(&self, quest_id: i32, current_encounter: i32, current_node_id: Option<&str>, encounters: &Vec<ratback_types::quest_data::Encounter>) -> Result<(), Box<dyn Error>> {
         let body = serde_json::json!({ "current_encounter": current_encounter, "current_node_id": current_node_id, "encounters": encounters });
         self.http.put(self.destination(&format!("quest/{quest_id}/encounters"))).json(&body).send()?;
         Ok(())

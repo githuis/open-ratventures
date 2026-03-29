@@ -8,7 +8,7 @@ use ratatui::{
     style::{Modifier, Style},
     widgets::{Clear, Widget},
 };
-use ratback::{
+use ratback_types::{
     data::{CharacterWrapper, InventoryItem, ItemEffect, User},
     quest_data::{Dialogue, DialogueOutcome, Encounter, Party, PartySummary, Quest},
 };
@@ -41,7 +41,7 @@ pub struct App {
 pub enum TavernState {
     #[default]
     Main,
-    Shop { items: Vec<ratback::data::ShopItem>, selected: usize, scroll: usize },
+    Shop { items: Vec<ratback_types::data::ShopItem>, selected: usize, scroll: usize },
 }
 
 #[derive(Debug)]
@@ -358,7 +358,7 @@ impl App {
                     }
                     self.inventory.clear();
                     // Reset all party members to starting stats
-                    let resets: Vec<(i32, ratback::data::Unit)> = self.party_members.iter_mut().map(|m| {
+                    let resets: Vec<(i32, ratback_types::data::Unit)> = self.party_members.iter_mut().map(|m| {
                         m.unit.health = m.unit.max_health;
                         m.character.coins = 0;
                         m.character.renown = 0;
@@ -889,7 +889,7 @@ impl App {
                     .map(|m| {
                         // find usable item (charges > 0 or infinite)
                         if let Some(item) = m.items.iter_mut().find(|it| it.charges != 0) {
-                            let dmg = match item.effect { ratback::data::ItemEffect::Damage(d) => d, _ => m.attack };
+                            let dmg = match item.effect { ratback_types::data::ItemEffect::Damage(d) => d, _ => m.attack };
                             if item.charges > 0 { item.charges -= 1; }
                             dmg
                         } else {

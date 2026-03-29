@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "backend",
+    "rat-client",
+    "ratback-types",
+]
+resolver = "2"

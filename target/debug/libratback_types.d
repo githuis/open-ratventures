@@ -1,0 +1,1 @@
+D:\projects\open-ratventures\target\debug\libratback_types.rlib: D:\projects\open-ratventures\ratback-types\src\data.rs D:\projects\open-ratventures\ratback-types\src\lib.rs D:\projects\open-ratventures\ratback-types\src\quest_data.rs

@@ -6,7 +6,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
-use ratback::data::ItemEffect;
+use ratback_types::data::ItemEffect;
 
 use crate::app::App;
 use crate::ui::{C_ACCENT, C_PANEL};
