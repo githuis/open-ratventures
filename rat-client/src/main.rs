@@ -21,6 +21,8 @@ async fn main() -> Result<()> {
     app_result
 }
 
-/// WASM entry point — wasm_bindgen(start) and ratzilla wiring added in step 3.
+/// WASM entry point — Trunk calls this as the binary entry; sets up DomBackend.
 #[cfg(target_arch = "wasm32")]
-fn main() {}
+fn main() {
+    App::start_wasm();
+}

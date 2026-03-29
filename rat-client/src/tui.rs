@@ -44,18 +44,19 @@ pub fn restore() -> io::Result<()> {
     Ok(())
 }
 
-// ─── WASM (ratzilla — placeholder until step 3) ───────────────────────────────
+// ─── WASM (ratzilla) ─────────────────────────────────────────────────────────
 
 #[cfg(target_arch = "wasm32")]
-use ratatui::{Terminal, backend::TestBackend};
+use ratzilla::backend::dom::DomBackend;
 
-/// Placeholder type — will be replaced with ratzilla's DomBackend in step 3.
 #[cfg(target_arch = "wasm32")]
-pub type Tui = Terminal<TestBackend>;
+pub type Tui = ratatui::Terminal<DomBackend>;
 
 #[cfg(target_arch = "wasm32")]
 pub fn init() -> io::Result<Tui> {
-    Terminal::new(TestBackend::new(80, 24))
+    let backend = DomBackend::new()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    ratatui::Terminal::new(backend)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
 }
 

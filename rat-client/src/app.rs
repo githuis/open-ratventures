@@ -111,14 +111,220 @@ impl App {
         Ok(())
     }
 
-    /// WASM entry point — ratzilla will replace this draw loop in step 3.
+    /// WASM entry point — called from `#[wasm_bindgen(start)]` in main.rs.
+    /// Sets up the DomBackend terminal, does an initial draw, and registers
+    /// ratzilla's key-event callback for the sync state machine.
+    /// Async network actions are no-ops until reqwest's wasm feature is wired (step 4).
     #[cfg(target_arch = "wasm32")]
-    pub async fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
-        while !self.exit {
-            terminal.draw(|frame| self.render_frame(frame))?;
-            // TODO: wire up ratzilla on_key_event callback
+    pub fn start_wasm() {
+        use std::{cell::RefCell, rc::Rc};
+        use ratzilla::WebRenderer;
+
+        let app = Rc::new(RefCell::new(App::default()));
+        let terminal = Rc::new(RefCell::new(tui::init().expect("tui init")));
+
+        terminal
+            .borrow_mut()
+            .draw(|frame| app.borrow().render_frame(frame))
+            .expect("initial draw");
+
+        let app_c = app.clone();
+        let term_c = terminal.clone();
+        // on_key_event: &self, returns () — registers a DOM keydown listener
+        terminal.borrow().on_key_event(move |key_event| {
+            app_c.borrow_mut().handle_key_event_wasm(key_event);
+            let a = app_c.borrow();
+            term_c.borrow_mut().draw(|f| a.render_frame(f)).ok();
+        });
+    }
+
+    /// Sync key dispatcher for WASM.  Pure UI state transitions are handled
+    /// immediately; actions that require network calls are left as no-ops and
+    /// will be filled in during step 4 (reqwest wasm feature + spawn_local).
+    #[cfg(target_arch = "wasm32")]
+    fn handle_key_event_wasm(&mut self, key: ratzilla::event::KeyEvent) {
+        use ratzilla::event::KeyCode;
+
+        if matches!(&self.state, AppState::Inventory { .. }) {
+            if let AppState::Inventory { scroll, selected, previous } =
+                std::mem::replace(&mut self.state, AppState::Main)
+            {
+                let item_count = self.inventory.len();
+                const PAGE: usize = 5;
+                match key.code {
+                    KeyCode::Char('j') | KeyCode::Char('s') | KeyCode::Down => {
+                        let new_sel = (selected + 1).min(item_count.saturating_sub(1));
+                        let new_scroll = if new_sel >= scroll + PAGE { scroll + 1 } else { scroll };
+                        self.state = AppState::Inventory { scroll: new_scroll, selected: new_sel, previous };
+                    }
+                    KeyCode::Char('k') | KeyCode::Char('w') | KeyCode::Up => {
+                        let new_sel = selected.saturating_sub(1);
+                        let new_scroll = if new_sel < scroll { scroll.saturating_sub(1) } else { scroll };
+                        self.state = AppState::Inventory { scroll: new_scroll, selected: new_sel, previous };
+                    }
+                    KeyCode::Char('v') | KeyCode::Esc | KeyCode::Char('q') => {
+                        self.state = *previous;
+                    }
+                    // Enter (use item) requires network — step 4.
+                    _ => { self.state = AppState::Inventory { scroll, selected, previous }; }
+                }
+            }
+            return;
         }
-        Ok(())
+
+        if matches!(&self.state, AppState::TargetSelect { .. }) {
+            if let AppState::TargetSelect { item_index, target_selected, inv_scroll, inv_item_selected, return_to } =
+                std::mem::replace(&mut self.state, AppState::Main)
+            {
+                let targets = self.dead_targets();
+                let target_count = targets.len();
+                match key.code {
+                    KeyCode::Char('j') | KeyCode::Char('s') | KeyCode::Down => {
+                        self.state = AppState::TargetSelect {
+                            item_index,
+                            target_selected: (target_selected + 1).min(target_count.saturating_sub(1)),
+                            inv_scroll, inv_item_selected, return_to,
+                        };
+                    }
+                    KeyCode::Char('k') | KeyCode::Char('w') | KeyCode::Up => {
+                        self.state = AppState::TargetSelect {
+                            item_index,
+                            target_selected: target_selected.saturating_sub(1),
+                            inv_scroll, inv_item_selected, return_to,
+                        };
+                    }
+                    KeyCode::Esc => {
+                        self.state = AppState::Inventory {
+                            scroll: inv_scroll,
+                            selected: inv_item_selected,
+                            previous: return_to,
+                        };
+                    }
+                    // Enter (apply heal) requires network — step 4.
+                    _ => {
+                        self.state = AppState::TargetSelect {
+                            item_index, target_selected, inv_scroll, inv_item_selected, return_to,
+                        };
+                    }
+                }
+            }
+            return;
+        }
+
+        match &self.state {
+            AppState::Welcome => match key.code {
+                KeyCode::Char('r') => self.start_register_user(),
+                KeyCode::Char('q') => self.exit(),
+                _ => {}
+            },
+
+            AppState::Tavern(TavernState::Main) => {
+                let has_char = self.active_character.is_some();
+                match key.code {
+                    KeyCode::Char('a') if has_char => self.state = AppState::AdventureMenu,
+                    KeyCode::Char('v') => self.open_inventory(),
+                    KeyCode::Char('q') => self.exit(),
+                    // 's' (shop), 'g' (party), 'o'/'r' (re-register) require network — step 4.
+                    _ => {}
+                }
+            }
+
+            AppState::Tavern(TavernState::Shop { .. }) => {
+                let (selected, scroll, item_count) =
+                    if let AppState::Tavern(TavernState::Shop { selected, scroll, items }) = &self.state {
+                        (*selected, *scroll, items.len())
+                    } else { unreachable!() };
+                const PAGE: usize = 5;
+                match key.code {
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        let new_sel = (selected + 1).min(item_count.saturating_sub(1));
+                        let new_scroll = if new_sel >= scroll + PAGE { scroll + 1 } else { scroll };
+                        if let AppState::Tavern(TavernState::Shop { selected: s, scroll: sc, .. }) = &mut self.state {
+                            *s = new_sel; *sc = new_scroll;
+                        }
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        let new_sel = selected.saturating_sub(1);
+                        let new_scroll = if new_sel < scroll { scroll.saturating_sub(1) } else { scroll };
+                        if let AppState::Tavern(TavernState::Shop { selected: s, scroll: sc, .. }) = &mut self.state {
+                            *s = new_sel; *sc = new_scroll;
+                        }
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        self.state = AppState::Tavern(TavernState::Main);
+                    }
+                    // Enter (buy item) requires network — step 4.
+                    _ => {}
+                }
+            }
+
+            AppState::TextInput(_) => match key.code {
+                // Enter (finish register) requires network — step 4.
+                KeyCode::Char(value) => {
+                    if let Some(current) = self.text_input.as_mut() {
+                        current.push(value);
+                    }
+                }
+                KeyCode::Backspace => {
+                    if let Some(current) = self.text_input.as_mut() {
+                        current.pop();
+                    }
+                }
+                KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
+                _ => {}
+            },
+
+            AppState::PartyLobby { .. } => match key.code {
+                KeyCode::Char('q') => self.exit(),
+                KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
+                // Join/create party require network — step 4.
+                _ => {}
+            },
+
+            AppState::Party => match key.code {
+                KeyCode::Char('v') => self.open_inventory(),
+                KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
+                // Leave party requires network — step 4.
+                _ => {}
+            },
+
+            AppState::AdventureMenu => match key.code {
+                KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Main),
+                // Start quest requires network — step 4.
+                _ => {}
+            },
+
+            AppState::GameOver => match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => {
+                    self.active_quest = None;
+                    self.inventory.clear();
+                    self.state = AppState::Tavern(TavernState::Main);
+                    // Full stat reset (update_character_unit etc.) requires network — step 4.
+                }
+                _ => {}
+            },
+
+            AppState::Combat => match key.code {
+                KeyCode::Char('v') => self.open_inventory(),
+                KeyCode::Char('q') => self.exit(),
+                // Combat actions require network — step 4.
+                _ => {}
+            },
+
+            AppState::Dialogue { .. } => match key.code {
+                KeyCode::Char('v') => self.open_inventory(),
+                KeyCode::Char('q') => self.exit(),
+                // Dialogue choices require network — step 4.
+                _ => {}
+            },
+
+            _ => match key.code {
+                KeyCode::Char('q') => self.exit(),
+                KeyCode::Char('r') => self.start_register_user(),
+                KeyCode::Char('v') => self.open_inventory(),
+                _ => {}
+            },
+        }
     }
 
     fn render_frame(&self, frame: &mut Frame) {
@@ -397,6 +603,10 @@ impl App {
                 KeyCode::Char('3') => self.use_item(2).await,
                 KeyCode::Char('4') => self.use_item(3).await,
                 KeyCode::Char('5') => self.use_item(4).await,
+                KeyCode::Char('6') => self.use_item(5).await,
+                KeyCode::Char('7') => self.use_item(6).await,
+                KeyCode::Char('8') => self.use_item(7).await,
+                KeyCode::Char('9') => self.use_item(8).await,
                 KeyCode::Char('v') => self.open_inventory(),
                 KeyCode::Char('q') => self.exit(),
                 _ => {}
