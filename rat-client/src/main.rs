@@ -7,10 +7,11 @@ mod ui;
 
 use app::App;
 
-fn main() -> Result<()> {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<()> {
     color_eyre::install()?;
     let mut terminal = tui::init()?;
-    let app_result = { App { ..App::default() } }.run(&mut terminal);
+    let app_result = App { ..App::default() }.run(&mut terminal).await;
 
     if let Err(err) = tui::restore() {
         eprintln!(

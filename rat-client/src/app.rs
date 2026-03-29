@@ -3,11 +3,12 @@ use std::time::{Duration, Instant};
 use ratatui::{
     Frame,
     buffer::Buffer,
-    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     widgets::{Clear, Widget},
 };
+use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind};
+use futures::StreamExt;
 use ratback_types::{
     data::{CharacterWrapper, InventoryItem, ItemEffect, User},
     quest_data::{Dialogue, DialogueOutcome, Encounter, Party, PartySummary, Quest},
@@ -75,21 +76,31 @@ pub enum Reason {
 }
 
 impl App {
-    pub fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
-        const TICK: Duration = Duration::from_millis(100);
+    pub async fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
         const REFRESH: Duration = Duration::from_secs(3);
         let mut last_refresh = Instant::now();
+        let mut event_reader = EventStream::new();
 
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
-            self.handle_events(TICK).wrap_err("handle events failed")?;
+
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(100)) => {}
+                maybe_event = event_reader.next() => {
+                    if let Some(Ok(Event::Key(key_event))) = maybe_event {
+                        if key_event.kind == KeyEventKind::Press {
+                            self.handle_key_event(key_event).await
+                                .wrap_err_with(|| format!("handling key event failed:\n{key_event:#?}"))?;
+                        }
+                    }
+                }
+            }
 
             if last_refresh.elapsed() >= REFRESH {
-                // Poll for quest start whenever in a party but not yet on a quest
                 if self.active_party.is_some() && self.active_quest.is_none() {
-                    self.refresh_party_state();
+                    self.refresh_party_state().await;
                 } else {
-                    self.refresh_quest_state();
+                    self.refresh_quest_state().await;
                 }
                 last_refresh = Instant::now();
             }
@@ -101,20 +112,7 @@ impl App {
         frame.render_widget(self, frame.area());
     }
 
-    fn handle_events(&mut self, timeout: Duration) -> Result<()> {
-        if event::poll(timeout)? {
-            match event::read()? {
-                Event::Key(key_event) if key_event.kind == KeyEventKind::Press => self
-                    .handle_key_event(key_event)
-                    .wrap_err_with(|| format!("handling key event failed:\n{key_event:#?}")),
-                _ => Ok(()),
-            }
-        } else {
-            Ok(())
-        }
-    }
-
-    fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<()> {
+    async fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<()> {
         if matches!(&self.state, AppState::Inventory { .. }) {
             if let AppState::Inventory { scroll, selected, previous } =
                 std::mem::replace(&mut self.state, AppState::Main)
@@ -154,7 +152,7 @@ impl App {
                             };
                         } else if can_use {
                             self.state = *previous;
-                            self.use_item(selected);
+                            self.use_item(selected).await;
                         } else {
                             self.state = AppState::Inventory { scroll, selected, previous };
                         }
@@ -198,7 +196,7 @@ impl App {
                     KeyCode::Enter => {
                         if let Some((user_id, _)) = targets.get(target_selected) {
                             let user_id = *user_id;
-                            self.apply_full_heal_to_target(item_index, user_id);
+                            self.apply_full_heal_to_target(item_index, user_id).await;
                         }
                         self.state = *return_to;
                     }
@@ -234,11 +232,11 @@ impl App {
                 let has_char = self.active_character.is_some();
                 match key_event.code {
                     KeyCode::Char('s') if has_char => {
-                        let items = self.client.get_shop_items().unwrap_or_default();
+                        let items = self.client.get_shop_items().await.unwrap_or_default();
                         self.state = AppState::Tavern(TavernState::Shop { items, selected: 0, scroll: 0 });
                     }
                     KeyCode::Char('a') if has_char => self.state = AppState::AdventureMenu,
-                    KeyCode::Char('g') if has_char => self.open_party(),
+                    KeyCode::Char('g') if has_char => self.open_party().await,
                     KeyCode::Char('o') | KeyCode::Char('r') if has_char => self.start_register_user(),
                     KeyCode::Char('v') => self.open_inventory(),
                     KeyCode::Char('q') => self.exit(),
@@ -273,7 +271,7 @@ impl App {
                             if let AppState::Tavern(TavernState::Shop { items, .. }) = &self.state {
                                 items.get(selected).map(|i| (i.item.name.clone(), i.cost as u32))
                             } else { None }.unwrap_or_default();
-                        if !name.is_empty() { self.tavern_buy_item(&name, cost); }
+                        if !name.is_empty() { self.tavern_buy_item(&name, cost).await; }
                     }
                     KeyCode::Esc | KeyCode::Char('q') => {
                         self.state = AppState::Tavern(TavernState::Main);
@@ -283,7 +281,7 @@ impl App {
             }
 
             AppState::TextInput(_) => match key_event.code {
-                KeyCode::Enter => self.finish_register_user(),
+                KeyCode::Enter => self.finish_register_user().await,
                 KeyCode::Char(value) => match self.text_input.as_mut() {
                     Some(current) => {
                         current.push(value);
@@ -301,20 +299,20 @@ impl App {
             },
 
             AppState::PartyLobby { .. } => match key_event.code {
-                KeyCode::Char('1') => self.join_party_from_lobby(0),
-                KeyCode::Char('2') => self.join_party_from_lobby(1),
-                KeyCode::Char('3') => self.join_party_from_lobby(2),
-                KeyCode::Char('4') => self.join_party_from_lobby(3),
-                KeyCode::Char('5') => self.join_party_from_lobby(4),
-                KeyCode::Char('n') => self.create_new_party(),
-                KeyCode::Char('r') => self.open_party(),
+                KeyCode::Char('1') => self.join_party_from_lobby(0).await,
+                KeyCode::Char('2') => self.join_party_from_lobby(1).await,
+                KeyCode::Char('3') => self.join_party_from_lobby(2).await,
+                KeyCode::Char('4') => self.join_party_from_lobby(3).await,
+                KeyCode::Char('5') => self.join_party_from_lobby(4).await,
+                KeyCode::Char('n') => self.create_new_party().await,
+                KeyCode::Char('r') => self.open_party().await,
                 KeyCode::Char('q') => self.exit(),
                 KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
                 _ => {}
             },
 
             AppState::Party => match key_event.code {
-                KeyCode::Char('l') => self.leave_party(),
+                KeyCode::Char('l') => self.leave_party().await,
                 KeyCode::Char('v') => self.open_inventory(),
                 KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
                 _ => {}
@@ -323,10 +321,10 @@ impl App {
             AppState::AdventureMenu => {
                 let renown = self.active_character.as_ref().map(|c| c.character.renown).unwrap_or(0);
                 match key_event.code {
-                    KeyCode::Char('1') => self.start_quest(AREA_SEWERS),
-                    KeyCode::Char('2') if renown >= 5 => self.start_quest(AREA_SEWER_DEPTHS),
-                    KeyCode::Char('3') if renown >= 10 => self.start_quest(AREA_FUNGAL_WARRENS),
-                    KeyCode::Char('4') if renown >= 20 => self.start_quest(AREA_ABYSS),
+                    KeyCode::Char('1') => self.start_quest(AREA_SEWERS).await,
+                    KeyCode::Char('2') if renown >= 5 => self.start_quest(AREA_SEWER_DEPTHS).await,
+                    KeyCode::Char('3') if renown >= 10 => self.start_quest(AREA_FUNGAL_WARRENS).await,
+                    KeyCode::Char('4') if renown >= 20 => self.start_quest(AREA_ABYSS).await,
                     KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Main),
                     _ => {}
                 }
@@ -347,17 +345,21 @@ impl App {
                 }
                 KeyCode::Char('q') | KeyCode::Esc => {
                     self.active_quest = None;
-                    // Reset active character to starting stats
-                    if let (Some(user), Some(c)) = (&self.active_user, &mut self.active_character) {
+                    // Mutate character state first, then extract copies for client calls
+                    if let (Some(_), Some(c)) = (&self.active_user, &mut self.active_character) {
                         c.unit.health = c.unit.max_health;
                         c.character.coins = 0;
                         c.character.renown = 0;
-                        let _ = self.client.update_character_unit(user.id, &c.unit);
-                        let _ = self.client.save_character_stats(user.id, 0, 0);
-                        let _ = self.client.clear_character_items(user.id);
+                    }
+                    let reset_self = self.active_user.as_ref()
+                        .zip(self.active_character.as_ref())
+                        .map(|(u, c)| (u.id, c.unit));
+                    if let Some((uid, unit)) = reset_self {
+                        let _ = self.client.update_character_unit(uid, &unit).await;
+                        let _ = self.client.save_character_stats(uid, 0, 0).await;
+                        let _ = self.client.clear_character_items(uid).await;
                     }
                     self.inventory.clear();
-                    // Reset all party members to starting stats
                     let resets: Vec<(i32, ratback_types::data::Unit)> = self.party_members.iter_mut().map(|m| {
                         m.unit.health = m.unit.max_health;
                         m.character.coins = 0;
@@ -365,9 +367,9 @@ impl App {
                         (m.character.user_id, m.unit.clone())
                     }).collect();
                     for (uid, unit) in resets {
-                        let _ = self.client.update_character_unit(uid, &unit);
-                        let _ = self.client.save_character_stats(uid, 0, 0);
-                        let _ = self.client.clear_character_items(uid);
+                        let _ = self.client.update_character_unit(uid, &unit).await;
+                        let _ = self.client.save_character_stats(uid, 0, 0).await;
+                        let _ = self.client.clear_character_items(uid).await;
                     }
                     self.state = AppState::Tavern(TavernState::Main);
                 }
@@ -375,23 +377,23 @@ impl App {
             },
 
             AppState::Combat => match key_event.code {
-                KeyCode::Char('f') => self.attack_first_enemy(5),
-                KeyCode::Char('1') => self.use_item(0),
-                KeyCode::Char('2') => self.use_item(1),
-                KeyCode::Char('3') => self.use_item(2),
-                KeyCode::Char('4') => self.use_item(3),
-                KeyCode::Char('5') => self.use_item(4),
+                KeyCode::Char('f') => self.attack_first_enemy(5).await,
+                KeyCode::Char('1') => self.use_item(0).await,
+                KeyCode::Char('2') => self.use_item(1).await,
+                KeyCode::Char('3') => self.use_item(2).await,
+                KeyCode::Char('4') => self.use_item(3).await,
+                KeyCode::Char('5') => self.use_item(4).await,
                 KeyCode::Char('v') => self.open_inventory(),
                 KeyCode::Char('q') => self.exit(),
                 _ => {}
             },
 
             AppState::Dialogue { .. } => match key_event.code {
-                KeyCode::Char('1') => self.pick_dialogue_choice(0),
-                KeyCode::Char('2') => self.pick_dialogue_choice(1),
-                KeyCode::Char('3') => self.pick_dialogue_choice(2),
-                KeyCode::Char('4') => self.pick_dialogue_choice(3),
-                KeyCode::Char('5') => self.pick_dialogue_choice(4),
+                KeyCode::Char('1') => self.pick_dialogue_choice(0).await,
+                KeyCode::Char('2') => self.pick_dialogue_choice(1).await,
+                KeyCode::Char('3') => self.pick_dialogue_choice(2).await,
+                KeyCode::Char('4') => self.pick_dialogue_choice(3).await,
+                KeyCode::Char('5') => self.pick_dialogue_choice(4).await,
                 KeyCode::Char('v') => self.open_inventory(),
                 KeyCode::Char('q') => self.exit(),
                 _ => {}
@@ -400,8 +402,8 @@ impl App {
             _ => match key_event.code {
                 KeyCode::Char('q') => self.exit(),
                 KeyCode::Char('r') => self.start_register_user(),
-                KeyCode::Char('c') => self.register_character(),
-                KeyCode::Char('f') => self.attack_first_enemy(5),
+                KeyCode::Char('c') => self.register_character().await,
+                KeyCode::Char('f') => self.attack_first_enemy(5).await,
                 KeyCode::Char('v') => self.open_inventory(),
                 _ => {}
             },
@@ -429,16 +431,18 @@ impl App {
         };
     }
 
-    fn tavern_buy_item(&mut self, item_name: &str, cost: u32) {
+    async fn tavern_buy_item(&mut self, item_name: &str, cost: u32) {
         let coins = self.active_character.as_ref().map(|c| c.character.coins).unwrap_or(0);
         if coins < cost {
             return;
         }
-        if let (Some(user), Some(c)) = (&self.active_user, &mut self.active_character) {
-            let user_id = user.id;
-            c.character.coins -= cost;
-            if self.client.post_give_item(user_id, item_name).is_ok() {
-                self.inventory = self.client.get_character_items(user_id).unwrap_or_default();
+        let uid = self.active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            if let Some(c) = self.active_character.as_mut() {
+                c.character.coins -= cost;
+            }
+            if self.client.post_give_item(uid, item_name).await.is_ok() {
+                self.inventory = self.client.get_character_items(uid).await.unwrap_or_default();
             }
         }
     }
@@ -456,59 +460,48 @@ impl App {
         self.toggle_text_input(Some(Reason::Register));
     }
 
-    fn finish_register_user(&mut self) {
+    async fn finish_register_user(&mut self) {
         self.toggle_text_input(None);
         self.active_user = match self.get_and_clear_text_input() {
-            Some(name) => self.register_user(name),
+            Some(name) => self.register_user(name).await,
             _ => None,
         };
-        if let Some(user) = &self.active_user {
-            let user_id = user.id;
-            self.active_character = self.client.post_new_character(&user_id).ok();
-            self.inventory = self.client.get_character_items(user_id).unwrap_or_default();
-            self.active_party = self.client.get_party_for_user(user_id).ok();
+        let uid = self.active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            self.active_character = self.client.post_new_character(&uid).await.ok();
+            self.inventory = self.client.get_character_items(uid).await.unwrap_or_default();
+            self.active_party = self.client.get_party_for_user(uid).await.ok();
             self.state = AppState::Tavern(TavernState::Main);
         }
     }
 
-    fn register_user(&self, username: String) -> Option<User> {
-        match self.client.post_register_user(username) {
-            Ok(x) => Some(x),
-            _ => None,
+    async fn register_user(&self, username: String) -> Option<User> {
+        self.client.post_register_user(username).await.ok()
+    }
+
+    async fn register_character(&mut self) {
+        let uid = self.active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            self.active_character = self.client.post_new_character(&uid).await.ok();
+            self.inventory = self.client.get_character_items(uid).await.unwrap_or_default();
         }
     }
 
-    fn register_character(&mut self) {
-        self.active_character = match self
-            .client
-            .post_new_character(&self.active_user.as_mut().unwrap().id)
-        {
-            Ok(new_char) => Some(new_char),
-            _ => None,
-        };
-        if let Some(user) = &self.active_user {
-            self.inventory = self.client.get_character_items(user.id).unwrap_or_default();
-        }
-    }
-
-    fn open_party(&mut self) {
+    async fn open_party(&mut self) {
         if self.active_user.is_none() {
             return;
         }
-        // If already in a party, go to the waiting room
-        if self.active_party.is_some() {
-            if let Some(p) = &self.active_party {
-                let pid = p.id;
-                self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
-            }
+        let party_id = self.active_party.as_ref().map(|p| p.id);
+        if let Some(pid) = party_id {
+            self.party_members = self.client.get_party_members_for_party(pid).await.unwrap_or_default();
             self.state = AppState::Party;
         } else {
-            let parties = self.client.get_open_parties().unwrap_or_default();
+            let parties = self.client.get_open_parties().await.unwrap_or_default();
             self.state = AppState::PartyLobby { parties };
         }
     }
 
-    fn join_party_from_lobby(&mut self, index: usize) {
+    async fn join_party_from_lobby(&mut self, index: usize) {
         let (party_id, user_id) = match &self.state {
             AppState::PartyLobby { parties } => match parties.get(index) {
                 Some(p) => (p.id, self.active_user.as_ref().map(|u| u.id).unwrap_or(0)),
@@ -516,75 +509,74 @@ impl App {
             },
             _ => return,
         };
-        if let Ok(party) = self.client.post_join_party(party_id, user_id) {
+        if let Ok(party) = self.client.post_join_party(party_id, user_id).await {
             self.active_party = Some(party);
-            if let Some(p) = &self.active_party {
-                let pid = p.id;
-                self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+            let pid = self.active_party.as_ref().map(|p| p.id);
+            if let Some(pid) = pid {
+                self.party_members = self.client.get_party_members_for_party(pid).await.unwrap_or_default();
             }
             self.state = AppState::Party;
         }
     }
 
-    fn create_new_party(&mut self) {
-        if let Some(user) = &self.active_user {
-            let user_id = user.id;
-            if let Ok(party) = self.client.post_create_party(user_id) {
+    async fn create_new_party(&mut self) {
+        let uid = self.active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            if let Ok(party) = self.client.post_create_party(uid).await {
                 self.active_party = Some(party);
-                if let Some(p) = &self.active_party {
-                    let pid = p.id;
-                    self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+                let pid = self.active_party.as_ref().map(|p| p.id);
+                if let Some(pid) = pid {
+                    self.party_members = self.client.get_party_members_for_party(pid).await.unwrap_or_default();
                 }
                 self.state = AppState::Party;
             }
         }
     }
 
-    fn leave_party(&mut self) {
-        if let Some(user) = &self.active_user {
-            let _ = self.client.delete_leave_party(user.id);
+    async fn leave_party(&mut self) {
+        let uid = self.active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            let _ = self.client.delete_leave_party(uid).await;
         }
         self.active_party = None;
         self.party_members.clear();
         self.state = AppState::Tavern(TavernState::Main);
     }
 
-    fn start_quest(&mut self, area: &str) {
-        if let Some(user) = &self.active_user {
-            let user_id = user.id;
-            self.active_quest = match self.client.post_new_quest(user_id, area) {
-                Ok(new_q) => Some(new_q),
-                _ => None,
-            };
-            self.fetch_party_members();
+    async fn start_quest(&mut self, area: &str) {
+        let uid = self.active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            self.active_quest = self.client.post_new_quest(uid, area).await.ok();
+            self.fetch_party_members().await;
             self.state = AppState::Main;
-            self.check_current_encounter();
+            self.check_current_encounter().await;
         }
     }
 
-    fn sync_quest_state(&mut self) {
+    async fn sync_quest_state(&mut self) {
         let node = match &self.state {
             AppState::Dialogue { current_node, .. } => Some(current_node.clone()),
             _ => None,
         };
         if let Some(q) = &self.active_quest {
-            let node_ref = node.as_deref();
-            let _ = self.client.put_encounters(q.id, q.current_encounter, node_ref, &q.encounters);
+            let quest_id = q.id;
+            let current_encounter = q.current_encounter;
+            let encounters = q.encounters.clone();
+            let _ = self.client.put_encounters(quest_id, current_encounter, node.as_deref(), &encounters).await;
         }
     }
 
-    fn refresh_quest_state(&mut self) {
+    async fn refresh_quest_state(&mut self) {
         let quest_id = match &self.active_quest {
             Some(q) => q.id,
             None => return,
         };
-        match self.client.get_quest(quest_id) {
+        match self.client.get_quest(quest_id).await {
             Ok(updated) => {
                 let enc_changed = self.active_quest.as_ref()
                     .map(|q| q.current_encounter != updated.current_encounter)
                     .unwrap_or(false);
 
-                // Detect if the encounter type changed at the same index (e.g. NPC → Combat)
                 let enc_type_changed = {
                     let idx = updated.current_encounter as usize;
                     let old_is_npc = self.active_quest.as_ref()
@@ -603,27 +595,25 @@ impl App {
                     q.current_node_id = updated.current_node_id.clone();
                 }
                 if enc_changed || enc_type_changed {
-                    self.check_current_encounter();
+                    self.check_current_encounter().await;
                 } else if let Some(node_id) = updated.current_node_id {
                     if let AppState::Dialogue { current_node, .. } = &mut self.state {
                         *current_node = node_id;
                     }
                 }
-                self.fetch_party_members();
+                self.fetch_party_members().await;
             }
             Err(_) => {
-                // Quest is no longer active (completed by another client)
                 self.active_quest = None;
-                if let Some(user) = &self.active_user {
-                    if let Ok(updated) = self.client.get_character(user.id) {
+                let uid = self.active_user.as_ref().map(|u| u.id);
+                if let Some(uid) = uid {
+                    if let Ok(updated) = self.client.get_character(uid).await {
                         self.active_character = Some(updated);
                     }
                 }
-                if self.active_party.is_some() {
-                    if let Some(p) = &self.active_party {
-                        let pid = p.id;
-                        self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
-                    }
+                let party_id = self.active_party.as_ref().map(|p| p.id);
+                if let Some(pid) = party_id {
+                    self.party_members = self.client.get_party_members_for_party(pid).await.unwrap_or_default();
                     self.state = AppState::Party;
                 } else {
                     self.party_members.clear();
@@ -633,13 +623,14 @@ impl App {
         }
     }
 
-    fn fetch_party_members(&mut self) {
-        if let Some(quest) = &self.active_quest {
-            self.party_members = self.client.get_quest_members(quest.id).unwrap_or_default();
+    async fn fetch_party_members(&mut self) {
+        let quest_id = self.active_quest.as_ref().map(|q| q.id);
+        if let Some(qid) = quest_id {
+            self.party_members = self.client.get_quest_members(qid).await.unwrap_or_default();
         }
     }
 
-    fn check_current_encounter(&mut self) {
+    async fn check_current_encounter(&mut self) {
         let (enc, quest_done) = match &self.active_quest {
             Some(q) => {
                 let idx = q.current_encounter as usize;
@@ -649,13 +640,13 @@ impl App {
         };
 
         if quest_done {
-            self.complete_quest();
+            self.complete_quest().await;
             return;
         }
 
         match enc {
             Some(Encounter::NpcEncounter(id)) => {
-                if let Ok(dialogue) = self.client.get_dialogue(&id) {
+                if let Ok(dialogue) = self.client.get_dialogue(&id).await {
                     let start = self.active_quest.as_ref()
                         .and_then(|q| q.current_node_id.clone())
                         .filter(|node| dialogue.nodes.contains_key(node.as_str()))
@@ -673,46 +664,44 @@ impl App {
         }
     }
 
-    fn complete_quest(&mut self) {
+    async fn complete_quest(&mut self) {
         let (quest_id, user_id) = match (&self.active_quest, &self.active_user) {
             (Some(q), Some(u)) => (q.id, u.id),
             _ => return,
         };
-        if let Some(c) = &self.active_character {
-            let _ = self.client.save_character_stats(user_id, c.character.coins, c.character.renown);
+        let stats = self.active_character.as_ref().map(|c| (c.character.coins, c.character.renown));
+        if let Some((coins, renown)) = stats {
+            let _ = self.client.save_character_stats(user_id, coins, renown).await;
         }
-        if let Ok(updated) = self.client.post_complete_quest(quest_id, user_id) {
+        if let Ok(updated) = self.client.post_complete_quest(quest_id, user_id).await {
             self.active_character = Some(updated);
         }
         self.active_quest = None;
-        if self.active_party.is_some() {
-            if let Some(p) = &self.active_party {
-                let pid = p.id;
-                self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
-            }
+        let party_id = self.active_party.as_ref().map(|p| p.id);
+        if let Some(pid) = party_id {
+            self.party_members = self.client.get_party_members_for_party(pid).await.unwrap_or_default();
             self.state = AppState::Party;
         } else {
             self.state = AppState::Tavern(TavernState::Main);
         }
     }
 
-    fn refresh_party_state(&mut self) {
-        // Refresh party member list
-        if let Some(p) = &self.active_party {
-            let pid = p.id;
-            self.party_members = self.client.get_party_members_for_party(pid).unwrap_or_default();
+    async fn refresh_party_state(&mut self) {
+        let party_id = self.active_party.as_ref().map(|p| p.id);
+        if let Some(pid) = party_id {
+            self.party_members = self.client.get_party_members_for_party(pid).await.unwrap_or_default();
         }
-        // Check if someone else started a quest for this party
-        if let Some(user) = &self.active_user {
-            if let Ok(quest) = self.client.get_active_quest_for_user(user.id) {
+        let uid = self.active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            if let Ok(quest) = self.client.get_active_quest_for_user(uid).await {
                 self.active_quest = Some(quest);
-                self.fetch_party_members();
-                self.check_current_encounter();
+                self.fetch_party_members().await;
+                self.check_current_encounter().await;
             }
         }
     }
 
-    fn pick_dialogue_choice(&mut self, index: usize) {
+    async fn pick_dialogue_choice(&mut self, index: usize) {
         let (next, outcome) = match &self.state {
             AppState::Dialogue { dialogue, current_node } => {
                 match dialogue.nodes.get(current_node) {
@@ -721,7 +710,6 @@ impl App {
                             let coins = self.active_character.as_ref()
                                 .map(|c| c.character.coins as i32)
                                 .unwrap_or(0);
-                            // block if this choice is locked (direct outcome or read-ahead)
                             let outcome_costs_more_than = |outcome: &DialogueOutcome| match outcome {
                                 DialogueOutcome::GiveItem { cost, .. } => coins < *cost,
                                 DialogueOutcome::Reward { coins: c, .. } => *c < 0 && coins < c.unsigned_abs() as i32,
@@ -760,23 +748,23 @@ impl App {
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_node_id = Some(node_id);
                 }
-                self.sync_quest_state();
+                self.sync_quest_state().await;
             }
             (None, Some(outcome)) => {
-                self.apply_dialogue_outcome(outcome);
+                self.apply_dialogue_outcome(outcome).await;
             }
             (None, None) => {
                 self.state = AppState::Tavern(TavernState::Main);
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_encounter += 1;
                 }
-                self.regen_energy();
-                self.sync_quest_state();
+                self.regen_energy().await;
+                self.sync_quest_state().await;
             }
         }
     }
 
-    fn apply_dialogue_outcome(&mut self, outcome: DialogueOutcome) {
+    async fn apply_dialogue_outcome(&mut self, outcome: DialogueOutcome) {
         self.state = AppState::Tavern(TavernState::Main);
         match outcome {
             DialogueOutcome::Reward { coins, renown, heal } => {
@@ -787,8 +775,11 @@ impl App {
                         c.unit.health = (c.unit.health + heal).clamp(0, c.unit.max_health);
                     }
                 }
-                if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
-                    let _ = self.client.save_character_stats(user.id, c.character.coins, c.character.renown);
+                let stats = self.active_user.as_ref()
+                    .zip(self.active_character.as_ref())
+                    .map(|(u, c)| (u.id, c.character.coins, c.character.renown));
+                if let Some((uid, coins, renown)) = stats {
+                    let _ = self.client.save_character_stats(uid, coins, renown).await;
                 }
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_encounter += 1;
@@ -815,18 +806,18 @@ impl App {
                     }
                     q.current_node_id = None;
                 }
-                self.state = AppState::Combat; // set before sync so node_id is sent as null
-                self.sync_quest_state();
+                self.state = AppState::Combat;
+                self.sync_quest_state().await;
                 return;
             }
             DialogueOutcome::GiveItem { item_name, cost } => {
                 if let Some(c) = self.active_character.as_mut() {
                     c.character.coins = (c.character.coins as i32 - cost).max(0) as u32;
                 }
-                if let Some(user) = &self.active_user {
-                    let uid = user.id;
-                    let _ = self.client.post_give_item(uid, &item_name);
-                    self.inventory = self.client.get_character_items(uid).unwrap_or_default();
+                let uid = self.active_user.as_ref().map(|u| u.id);
+                if let Some(uid) = uid {
+                    let _ = self.client.post_give_item(uid, &item_name).await;
+                    self.inventory = self.client.get_character_items(uid).await.unwrap_or_default();
                 }
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_encounter += 1;
@@ -836,12 +827,12 @@ impl App {
                 return;
             }
         }
-        self.regen_energy();
-        self.sync_quest_state();
-        self.check_current_encounter();
+        self.regen_energy().await;
+        self.sync_quest_state().await;
+        self.check_current_encounter().await;
     }
 
-    fn attack_first_enemy(&mut self, damage: i32) {
+    async fn attack_first_enemy(&mut self, damage: i32) {
         // Check and spend 1 EP
         if let Some(c) = self.active_character.as_mut() {
             if c.unit.energy <= 0 {
@@ -849,8 +840,11 @@ impl App {
             }
             c.unit.energy -= 1;
         }
-        if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
-            let _ = self.client.update_character_unit(user.id, &c.unit);
+        let update = self.active_user.as_ref()
+            .zip(self.active_character.as_ref())
+            .map(|(u, c)| (u.id, c.unit));
+        if let Some((uid, unit)) = update {
+            let _ = self.client.update_character_unit(uid, &unit).await;
         }
 
         // Phase 1: player attacks, count surviving monsters
@@ -887,7 +881,6 @@ impl App {
                 combat.monsters.iter_mut()
                     .filter(|m| m.unit.health > 0)
                     .map(|m| {
-                        // find usable item (charges > 0 or infinite)
                         if let Some(item) = m.items.iter_mut().find(|it| it.charges != 0) {
                             let dmg = match item.effect { ratback_types::data::ItemEffect::Damage(d) => d, _ => m.attack };
                             if item.charges > 0 { item.charges -= 1; }
@@ -903,10 +896,11 @@ impl App {
             if let Some(c) = self.active_character.as_mut() {
                 c.unit.health = (c.unit.health - monster_damage).max(0);
             }
-            if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
-                let uid = user.id;
-                let unit = c.unit;
-                let _ = self.client.update_character_unit(uid, &unit);
+            let update = self.active_user.as_ref()
+                .zip(self.active_character.as_ref())
+                .map(|(u, c)| (u.id, c.unit));
+            if let Some((uid, unit)) = update {
+                let _ = self.client.update_character_unit(uid, &unit).await;
             }
         } else if encounter_cleared {
             self.last_combat_damage = None;
@@ -914,12 +908,15 @@ impl App {
 
         // push updated encounter state to backend
         if let Some(q) = &self.active_quest {
-            let _ = self.client.put_encounters(q.id, q.current_encounter, None, &q.encounters);
+            let quest_id = q.id;
+            let current_encounter = q.current_encounter;
+            let encounters = q.encounters.clone();
+            let _ = self.client.put_encounters(quest_id, current_encounter, None, &encounters).await;
         }
 
         if encounter_cleared {
-            self.regen_energy();
-            self.check_current_encounter();
+            self.regen_energy().await;
+            self.check_current_encounter().await;
         } else {
             let all_dead = self.active_character.as_ref().map_or(false, |c| c.unit.health <= 0)
                 && self.party_members.iter().all(|m| m.unit.health <= 0);
@@ -929,7 +926,7 @@ impl App {
         }
     }
 
-    fn use_item(&mut self, index: usize) {
+    async fn use_item(&mut self, index: usize) {
         let inv_item = match self.inventory.get(index) {
             Some(i) => i.clone(),
             None => return,
@@ -957,20 +954,22 @@ impl App {
                 if let Some(c) = self.active_character.as_mut() {
                     c.unit.health = (c.unit.health + heal).clamp(0, c.unit.max_health);
                 }
-                if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
-                    let uid = user.id;
-                    let unit = c.unit;
-                    let _ = self.client.update_character_unit(uid, &unit);
+                let update = self.active_user.as_ref()
+                    .zip(self.active_character.as_ref())
+                    .map(|(u, c)| (u.id, c.unit));
+                if let Some((uid, unit)) = update {
+                    let _ = self.client.update_character_unit(uid, &unit).await;
                 }
             }
             ItemEffect::FullHeal => {
                 if let Some(c) = self.active_character.as_mut() {
                     c.unit.health = c.unit.max_health;
                 }
-                if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
-                    let uid = user.id;
-                    let unit = c.unit;
-                    let _ = self.client.update_character_unit(uid, &unit);
+                let update = self.active_user.as_ref()
+                    .zip(self.active_character.as_ref())
+                    .map(|(u, c)| (u.id, c.unit));
+                if let Some((uid, unit)) = update {
+                    let _ = self.client.update_character_unit(uid, &unit).await;
                 }
             }
             ItemEffect::MaxHpUp(amount) => {
@@ -979,38 +978,45 @@ impl App {
                     c.unit.max_health += amount;
                     c.unit.health = (c.unit.health + amount).min(c.unit.max_health);
                 }
-                if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
-                    let uid = user.id;
-                    let unit = c.unit;
-                    let _ = self.client.update_character_unit(uid, &unit);
+                let update = self.active_user.as_ref()
+                    .zip(self.active_character.as_ref())
+                    .map(|(u, c)| (u.id, c.unit));
+                if let Some((uid, unit)) = update {
+                    let _ = self.client.update_character_unit(uid, &unit).await;
                 }
             }
         }
 
         // consume one charge and re-sync from server
         if inv_item.item.charges != -1 {
-            if let Some(user) = &self.active_user {
-                let uid = user.id;
-                let _ = self.client.delete_character_item(uid, inv_item.item.id);
-                self.inventory = self.client.get_character_items(uid).unwrap_or_default();
+            let uid = self.active_user.as_ref().map(|u| u.id);
+            if let Some(uid) = uid {
+                let _ = self.client.delete_character_item(uid, inv_item.item.id).await;
+                self.inventory = self.client.get_character_items(uid).await.unwrap_or_default();
             }
         }
 
         if let Some(q) = &self.active_quest {
-            let _ = self.client.put_encounters(q.id, q.current_encounter, None, &q.encounters);
+            let quest_id = q.id;
+            let current_encounter = q.current_encounter;
+            let encounters = q.encounters.clone();
+            let _ = self.client.put_encounters(quest_id, current_encounter, None, &encounters).await;
         }
         if encounter_cleared {
-            self.regen_energy();
-            self.check_current_encounter();
+            self.regen_energy().await;
+            self.check_current_encounter().await;
         }
     }
 
-    fn regen_energy(&mut self) {
+    async fn regen_energy(&mut self) {
         if let Some(c) = self.active_character.as_mut() {
             c.unit.energy = (c.unit.energy + 5).min(c.unit.max_energy);
         }
-        if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
-            let _ = self.client.update_character_unit(user.id, &c.unit);
+        let update = self.active_user.as_ref()
+            .zip(self.active_character.as_ref())
+            .map(|(u, c)| (u.id, c.unit));
+        if let Some((uid, unit)) = update {
+            let _ = self.client.update_character_unit(uid, &unit).await;
         }
     }
 
@@ -1029,31 +1035,34 @@ impl App {
         targets
     }
 
-    fn apply_full_heal_to_target(&mut self, item_index: usize, target_user_id: i32) {
+    async fn apply_full_heal_to_target(&mut self, item_index: usize, target_user_id: i32) {
         let active_user_id = self.active_user.as_ref().map(|u| u.id);
         if active_user_id == Some(target_user_id) {
-            if let Some(c) = self.active_character.as_mut() {
+            let unit = self.active_character.as_mut().map(|c| {
                 c.unit.health = c.unit.max_health;
-                let unit = c.unit;
-                let _ = self.client.update_character_unit(target_user_id, &unit);
+                c.unit
+            });
+            if let Some(unit) = unit {
+                let _ = self.client.update_character_unit(target_user_id, &unit).await;
             }
         } else {
-            for m in &mut self.party_members {
-                if m.character.user_id == target_user_id {
+            let unit = self.party_members.iter_mut()
+                .find(|m| m.character.user_id == target_user_id)
+                .map(|m| {
                     m.unit.health = m.unit.max_health;
-                    let unit = m.unit;
-                    let _ = self.client.update_character_unit(target_user_id, &unit);
-                    break;
-                }
+                    m.unit
+                });
+            if let Some(unit) = unit {
+                let _ = self.client.update_character_unit(target_user_id, &unit).await;
             }
         }
         let inv_item = self.inventory.get(item_index).cloned();
         if let Some(inv_item) = inv_item {
             if inv_item.item.charges != -1 {
-                if let Some(user) = &self.active_user {
-                    let uid = user.id;
-                    let _ = self.client.delete_character_item(uid, inv_item.item.id);
-                    self.inventory = self.client.get_character_items(uid).unwrap_or_default();
+                let uid = self.active_user.as_ref().map(|u| u.id);
+                if let Some(uid) = uid {
+                    let _ = self.client.delete_character_item(uid, inv_item.item.id).await;
+                    self.inventory = self.client.get_character_items(uid).await.unwrap_or_default();
                 }
             }
         }
@@ -1148,4 +1157,3 @@ impl Widget for &App {
         }
     }
 }
-
