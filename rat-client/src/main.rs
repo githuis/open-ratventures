@@ -7,6 +7,7 @@ mod ui;
 
 use app::App;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     color_eyre::install()?;
@@ -19,3 +20,7 @@ async fn main() -> Result<()> {
     }
     app_result
 }
+
+/// WASM entry point — wasm_bindgen(start) and ratzilla wiring added in step 3.
+#[cfg(target_arch = "wasm32")]
+fn main() {}

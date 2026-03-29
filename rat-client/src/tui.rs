@@ -1,44 +1,65 @@
-// ANCHOR: all
-// ANCHOR: imports
-use std::io::{self, stdout, Stdout};
+use std::io;
 
+// ─── Native (crossterm) ───────────────────────────────────────────────────────
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::Stdout;
+
+#[cfg(not(target_arch = "wasm32"))]
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     crossterm::{
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
-    Terminal,
 };
-// ANCHOR_END: imports
 
-/// A type alias for the terminal type used in this application
+#[cfg(not(target_arch = "wasm32"))]
 pub type Tui = Terminal<CrosstermBackend<Stdout>>;
 
-// ANCHOR: init
-/// Initialize the terminal
+#[cfg(not(target_arch = "wasm32"))]
 pub fn init() -> io::Result<Tui> {
+    use std::io::stdout;
     execute!(stdout(), EnterAlternateScreen)?;
     enable_raw_mode()?;
     set_panic_hook();
     Terminal::new(CrosstermBackend::new(stdout()))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn set_panic_hook() {
     let hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
-        let _ = restore(); // ignore any errors as we are already failing
+        let _ = restore();
         hook(panic_info);
     }));
 }
-// ANCHOR_END: init
 
-// ANCHOR: restore
-/// Restore the terminal to its original state
+#[cfg(not(target_arch = "wasm32"))]
 pub fn restore() -> io::Result<()> {
+    use std::io::stdout;
     execute!(stdout(), LeaveAlternateScreen)?;
     disable_raw_mode()?;
     Ok(())
 }
-// ANCHOR_END: restore
-// ANCHOR_END: all
+
+// ─── WASM (ratzilla — placeholder until step 3) ───────────────────────────────
+
+#[cfg(target_arch = "wasm32")]
+use ratatui::{Terminal, backend::TestBackend};
+
+/// Placeholder type — will be replaced with ratzilla's DomBackend in step 3.
+#[cfg(target_arch = "wasm32")]
+pub type Tui = Terminal<TestBackend>;
+
+#[cfg(target_arch = "wasm32")]
+pub fn init() -> io::Result<Tui> {
+    Terminal::new(TestBackend::new(80, 24))
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn restore() -> io::Result<()> {
+    Ok(())
+}

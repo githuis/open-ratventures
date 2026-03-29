@@ -7,7 +7,9 @@ use ratatui::{
     style::{Modifier, Style},
     widgets::{Clear, Widget},
 };
+#[cfg(not(target_arch = "wasm32"))]
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind};
+#[cfg(not(target_arch = "wasm32"))]
 use futures::StreamExt;
 use ratback_types::{
     data::{CharacterWrapper, InventoryItem, ItemEffect, User},
@@ -76,6 +78,7 @@ pub enum Reason {
 }
 
 impl App {
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
         const REFRESH: Duration = Duration::from_secs(3);
         let mut last_refresh = Instant::now();
@@ -108,10 +111,21 @@ impl App {
         Ok(())
     }
 
+    /// WASM entry point — ratzilla will replace this draw loop in step 3.
+    #[cfg(target_arch = "wasm32")]
+    pub async fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
+        while !self.exit {
+            terminal.draw(|frame| self.render_frame(frame))?;
+            // TODO: wire up ratzilla on_key_event callback
+        }
+        Ok(())
+    }
+
     fn render_frame(&self, frame: &mut Frame) {
         frame.render_widget(self, frame.area());
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     async fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<()> {
         if matches!(&self.state, AppState::Inventory { .. }) {
             if let AppState::Inventory { scroll, selected, previous } =
