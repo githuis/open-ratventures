@@ -58,6 +58,7 @@ pub enum AppState {
     AdventureMenu,
     Inventory { scroll: usize, selected: usize, previous: Box<AppState> },
     TargetSelect { item_index: usize, target_selected: usize, inv_scroll: usize, inv_item_selected: usize, return_to: Box<AppState> },
+    GameOver,
 }
 
 impl Default for AppState {
@@ -330,6 +331,48 @@ impl App {
                     _ => {}
                 }
             }
+
+            AppState::GameOver => match key_event.code {
+                KeyCode::Char('i') => {
+                    let has_revive = self.inventory.iter().any(|i| {
+                        matches!(i.item.effect, ItemEffect::FullHeal) && i.charges_remaining != 0
+                    });
+                    if has_revive {
+                        self.state = AppState::Inventory {
+                            scroll: 0,
+                            selected: 0,
+                            previous: Box::new(AppState::Combat),
+                        };
+                    }
+                }
+                KeyCode::Char('q') | KeyCode::Esc => {
+                    self.active_quest = None;
+                    // Reset active character to starting stats
+                    if let (Some(user), Some(c)) = (&self.active_user, &mut self.active_character) {
+                        c.unit.health = c.unit.max_health;
+                        c.character.coins = 0;
+                        c.character.renown = 0;
+                        let _ = self.client.update_character_unit(user.id, &c.unit);
+                        let _ = self.client.save_character_stats(user.id, 0, 0);
+                        let _ = self.client.clear_character_items(user.id);
+                    }
+                    self.inventory.clear();
+                    // Reset all party members to starting stats
+                    let resets: Vec<(i32, ratback::data::Unit)> = self.party_members.iter_mut().map(|m| {
+                        m.unit.health = m.unit.max_health;
+                        m.character.coins = 0;
+                        m.character.renown = 0;
+                        (m.character.user_id, m.unit.clone())
+                    }).collect();
+                    for (uid, unit) in resets {
+                        let _ = self.client.update_character_unit(uid, &unit);
+                        let _ = self.client.save_character_stats(uid, 0, 0);
+                        let _ = self.client.clear_character_items(uid);
+                    }
+                    self.state = AppState::Tavern(TavernState::Main);
+                }
+                _ => {}
+            },
 
             AppState::Combat => match key_event.code {
                 KeyCode::Char('f') => self.attack_first_enemy(5),
@@ -727,6 +770,7 @@ impl App {
                 if let Some(q) = self.active_quest.as_mut() {
                     q.current_encounter += 1;
                 }
+                self.regen_energy();
                 self.sync_quest_state();
             }
         }
@@ -788,13 +832,27 @@ impl App {
                     q.current_encounter += 1;
                 }
             }
-            DialogueOutcome::Escape => {}
+            DialogueOutcome::Escape => {
+                return;
+            }
         }
+        self.regen_energy();
         self.sync_quest_state();
         self.check_current_encounter();
     }
 
     fn attack_first_enemy(&mut self, damage: i32) {
+        // Check and spend 1 EP
+        if let Some(c) = self.active_character.as_mut() {
+            if c.unit.energy <= 0 {
+                return;
+            }
+            c.unit.energy -= 1;
+        }
+        if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
+            let _ = self.client.update_character_unit(user.id, &c.unit);
+        }
+
         // Phase 1: player attacks, count surviving monsters
         let (encounter_cleared, monsters_alive) = {
             let quest = match self.active_quest.as_mut() {
@@ -860,7 +918,14 @@ impl App {
         }
 
         if encounter_cleared {
+            self.regen_energy();
             self.check_current_encounter();
+        } else {
+            let all_dead = self.active_character.as_ref().map_or(false, |c| c.unit.health <= 0)
+                && self.party_members.iter().all(|m| m.unit.health <= 0);
+            if all_dead {
+                self.state = AppState::GameOver;
+            }
         }
     }
 
@@ -935,7 +1000,17 @@ impl App {
             let _ = self.client.put_encounters(q.id, q.current_encounter, None, &q.encounters);
         }
         if encounter_cleared {
+            self.regen_energy();
             self.check_current_encounter();
+        }
+    }
+
+    fn regen_energy(&mut self) {
+        if let Some(c) = self.active_character.as_mut() {
+            c.unit.energy = (c.unit.energy + 5).min(c.unit.max_energy);
+        }
+        if let (Some(user), Some(c)) = (&self.active_user, &self.active_character) {
+            let _ = self.client.update_character_unit(user.id, &c.unit);
         }
     }
 
@@ -1049,6 +1124,16 @@ impl Widget for &App {
                 Clear::default().render(rect, buf);
                 let in_combat = matches!(**previous, AppState::Combat);
                 self.render_inventory_popup(rect, buf, text_style, *scroll, *selected, in_combat);
+            }
+            AppState::GameOver => {
+                self.render_combat(parent_layout[1], buf, text_style);
+                let popup_width = 40.min(area.width.saturating_sub(4));
+                let popup_height = 8.min(area.height.saturating_sub(4));
+                let popup_x = area.x + (area.width.saturating_sub(popup_width)) / 2;
+                let popup_y = area.y + (area.height.saturating_sub(popup_height)) / 2;
+                let rect = Rect::new(popup_x, popup_y, popup_width, popup_height);
+                Clear::default().render(rect, buf);
+                self.render_game_over(rect, buf, text_style);
             }
             AppState::TargetSelect { target_selected, .. } => {
                 let popup_width = 40.min(area.width.saturating_sub(4));

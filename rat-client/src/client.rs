@@ -84,6 +84,11 @@ impl Rattp {
         Ok(())
     }
 
+    pub fn clear_character_items(&self, user_id: i32) -> Result<(), Box<dyn Error>> {
+        self.http.delete(self.destination(&format!("character/{user_id}/items"))).send()?;
+        Ok(())
+    }
+
     /***********
      * Shop
      ***********/

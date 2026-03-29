@@ -13,7 +13,7 @@ pub fn routes() -> Router {
         .route("/character/{user_id}", get(get_character))
         .route("/character/{user_id}/unit", put(update_unit))
         .route("/character/{user_id}/stats", put(save_stats))
-        .route("/character/{user_id}/items", get(get_items).post(give_item))
+        .route("/character/{user_id}/items", get(get_items).post(give_item).delete(clear_items))
         .route("/character/{user_id}/items/{item_id}", delete(consume_item))
         .route("/shop", get(list_shop))
 }
@@ -86,6 +86,16 @@ async fn consume_item(
     Path((user_id, item_id)): Path<(i32, i32)>,
 ) -> StatusCode {
     match db.consume_item(user_id, item_id).await {
+        Ok(_) => StatusCode::NO_CONTENT,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+async fn clear_items(
+    Extension(db): Extension<DbConnection>,
+    Path(user_id): Path<i32>,
+) -> StatusCode {
+    match db.clear_items(user_id).await {
         Ok(_) => StatusCode::NO_CONTENT,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }

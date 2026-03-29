@@ -259,6 +259,18 @@ impl DbConnection {
         Ok(())
     }
 
+    pub async fn clear_items(&self, user_id: i32) -> Result<()> {
+        let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?;
+        sqlx::query("DELETE FROM character_items WHERE character_id = $1")
+            .bind(char_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn consume_item(&self, user_id: i32, item_id: i32) -> Result<()> {
         let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
             .bind(user_id)

@@ -91,6 +91,40 @@ impl App {
             .render(inner, buf);
     }
 
+    pub(crate) fn render_game_over(&self, area: Rect, buf: &mut Buffer, _text_style: Style) {
+        let has_revive = self.inventory.iter().any(|i| {
+            matches!(i.item.effect, ItemEffect::FullHeal) && i.charges_remaining != 0
+        });
+
+        let hint = if has_revive {
+            " [I] Use revive item  [Q] Give up "
+        } else {
+            " [Q] Give up "
+        };
+
+        let block = Block::default()
+            .title(Line::from(" Party wiped! ").centered())
+            .title_bottom(Line::from(hint).centered())
+            .borders(Borders::ALL)
+            .border_set(border::THICK)
+            .border_style(Style::default().fg(C_ACCENT))
+            .bg(C_PANEL);
+
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        let body = if has_revive {
+            "Everyone is down.\nYou have revive items remaining."
+        } else {
+            "Everyone is down.\nNo revive items remain.\nThe adventure ends here."
+        };
+
+        Paragraph::new(body)
+            .wrap(Wrap { trim: false })
+            .bg(C_PANEL)
+            .render(inner, buf);
+    }
+
     pub(crate) fn render_target_select(&self, area: Rect, buf: &mut Buffer, text_style: Style, selected: usize) {
         let block = Block::default()
             .title(Line::from(" Revive who? ").centered())
