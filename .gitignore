@@ -1,0 +1,14 @@
+# Rust build artifacts
+target/
+backend/target/
+rat-client/target/
+ratback-types/target/
+
+# Editor / IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
