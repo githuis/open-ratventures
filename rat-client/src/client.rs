@@ -5,7 +5,7 @@ use reqwest::Client;
 
 const DEFAULT_HOST: &str = "http://localhost:3000/api/";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Rattp {
     pub http: Client,
     host: String,
