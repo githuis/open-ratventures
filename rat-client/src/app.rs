@@ -352,9 +352,16 @@ impl App {
                         if coins >= cost {
                             let uid = app.borrow().active_user.as_ref().map(|u| u.id);
                             if let Some(uid) = uid {
-                                if let Some(c) = app.borrow_mut().active_character.as_mut() {
-                                    c.character.coins -= cost;
-                                }
+                                let (new_coins, renown) = {
+                                    let mut a = app.borrow_mut();
+                                    if let Some(c) = a.active_character.as_mut() {
+                                        c.character.coins -= cost;
+                                    }
+                                    a.active_character.as_ref()
+                                        .map(|c| (c.character.coins, c.character.renown))
+                                        .unwrap_or_default()
+                                };
+                                let _ = client.save_character_stats(uid, new_coins, renown).await;
                                 if client.post_give_item(uid, &name).await.is_ok() {
                                     let inventory = client.get_character_items(uid).await.unwrap_or_default();
                                     app.borrow_mut().inventory = inventory;
@@ -849,15 +856,20 @@ impl App {
                 return;
             }
             DialogueOutcome::GiveItem { item_name, cost } => {
-                let uid = {
+                let (uid, new_coins, renown) = {
                     let mut a = app.borrow_mut();
                     if let Some(c) = a.active_character.as_mut() {
                         c.character.coins = (c.character.coins as i32 - cost).max(0) as u32;
                     }
                     if let Some(q) = a.active_quest.as_mut() { q.current_encounter += 1; }
-                    a.active_user.as_ref().map(|u| u.id)
+                    let uid = a.active_user.as_ref().map(|u| u.id);
+                    let (coins, renown) = a.active_character.as_ref()
+                        .map(|c| (c.character.coins, c.character.renown))
+                        .unwrap_or_default();
+                    (uid, coins, renown)
                 };
                 if let Some(uid) = uid {
+                    let _ = client.save_character_stats(uid, new_coins, renown).await;
                     let _ = client.post_give_item(uid, &item_name).await;
                     let inventory = client.get_character_items(uid).await.unwrap_or_default();
                     app.borrow_mut().inventory = inventory;
@@ -1410,6 +1422,10 @@ impl App {
             if let Some(c) = self.active_character.as_mut() {
                 c.character.coins -= cost;
             }
+            let (new_coins, renown) = self.active_character.as_ref()
+                .map(|c| (c.character.coins, c.character.renown))
+                .unwrap_or_default();
+            let _ = self.client.save_character_stats(uid, new_coins, renown).await;
             if self.client.post_give_item(uid, item_name).await.is_ok() {
                 self.inventory = self.client.get_character_items(uid).await.unwrap_or_default();
             }
@@ -1784,7 +1800,11 @@ impl App {
                     c.character.coins = (c.character.coins as i32 - cost).max(0) as u32;
                 }
                 let uid = self.active_user.as_ref().map(|u| u.id);
+                let (new_coins, renown) = self.active_character.as_ref()
+                    .map(|c| (c.character.coins, c.character.renown))
+                    .unwrap_or_default();
                 if let Some(uid) = uid {
+                    let _ = self.client.save_character_stats(uid, new_coins, renown).await;
                     let _ = self.client.post_give_item(uid, &item_name).await;
                     self.inventory = self.client.get_character_items(uid).await.unwrap_or_default();
                 }

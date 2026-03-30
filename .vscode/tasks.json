@@ -16,6 +16,20 @@
       "problemMatcher": []
     },
     {
+      "label": "Run Web Client",
+      "type": "shell",
+      "command": "trunk serve --port 8081",
+      "options": {
+        "cwd": "${workspaceFolder}/rat-client"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
       "label": "Run Client",
       "type": "shell",
       "command": "cargo run",
@@ -33,6 +47,7 @@
       "label": "Run rats",
       "dependsOn": [
         "Run Backend",
+        "Run Web Client",
         "Run Client"
       ],
       "dependsOrder": "parallel",

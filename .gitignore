@@ -4,6 +4,9 @@ backend/target/
 rat-client/target/
 ratback-types/target/
 
+# Trunk WASM build output
+rat-client/dist/
+
 # Editor / IDE
 .vscode/settings.json
 .idea/

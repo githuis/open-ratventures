@@ -1,6 +1,7 @@
 mod static_string_loader;
 
 use axum::{ Extension, Router, response::Json, routing::{get, post}, };
+use tower_http::cors::CorsLayer;
 use color_eyre::Result;
 use ratback::db::DbConnection;
 use tokio::net::TcpListener;
@@ -21,7 +22,8 @@ async fn main() -> Result<()> {
         .nest("/api", ratback::users::routes())
         .layer(Extension(enemies))
         .layer(Extension(dialogues))
-        .layer(Extension(db));
+        .layer(Extension(db))
+        .layer(CorsLayer::permissive());
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(3000);

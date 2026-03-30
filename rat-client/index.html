@@ -6,7 +6,22 @@
     <title>RatVentures</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #000; }
+      body {
+        background: #111;
+        display: flex;
+        justify-content: center;
+        padding-top: 2rem;
+      }
+      #grid {
+        display: inline-block;
+      }
+      #grid pre {
+        /* Match the hardcoded 15px row height ratzilla sets on each <pre>.
+           Without this, the browser's default line-height (~1.2×) is taller
+           than 15px, causing block-drawing characters to overflow their row
+           and produce a horizontal artifact band. */
+        line-height: 15px;
+      }
     </style>
   </head>
   <body></body>
