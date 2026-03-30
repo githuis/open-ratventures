@@ -13,7 +13,10 @@ pub struct Rattp {
 
 impl Default for Rattp {
     fn default() -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
         let host = std::env::var("RATQUEST_HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
+        #[cfg(target_arch = "wasm32")]
+        let host = option_env!("RATQUEST_HOST").unwrap_or(DEFAULT_HOST).to_string();
         Self { http: Client::new(), host }
     }
 }
