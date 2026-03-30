@@ -449,10 +449,12 @@ impl App {
                     {
                         let mut a = app.borrow_mut();
                         a.active_quest = None;
-                        if let (Some(_), Some(c)) = (&a.active_user, &mut a.active_character) {
-                            c.unit.health = c.unit.max_health;
-                            c.character.coins = 0;
-                            c.character.renown = 0;
+                        if a.active_user.is_some() {
+                            if let Some(c) = a.active_character.as_mut() {
+                                c.unit.health = c.unit.max_health;
+                                c.character.coins = 0;
+                                c.character.renown = 0;
+                            }
                         }
                         a.inventory.clear();
                     }
