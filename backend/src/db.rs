@@ -106,7 +106,7 @@ impl DbConnection {
         .last_insert_rowid();
 
         sqlx::query(
-            "INSERT INTO units (ref_id, health, energy, max_health, max_energy) VALUES ($1, 15, 10, 15, 10)",
+            "INSERT INTO units (ref_id, health, energy, max_health, max_energy) VALUES ($1, 50, 20, 50, 20)",
         )
         .bind(char_id)
         .execute(&self.pool)

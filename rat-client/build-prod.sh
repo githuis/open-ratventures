@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-trunk build --release --config Trunk.production.toml
+RATQUEST_HOST=https://play.ratventure.online/api/ trunk build --release --config Trunk.production.toml
+read -p "Press Enter to close..."

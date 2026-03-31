@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RatVenture</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        background: #111;
+        color: #ccc;
+        font-family: monospace;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
+        padding: 2rem;
+      }
+
+      h1 {
+        font-size: 3rem;
+        color: #e8d8a0;
+        letter-spacing: 0.1em;
+        text-shadow: 0 0 20px rgba(232, 216, 160, 0.3);
+      }
+
+      p {
+        font-size: 1.1rem;
+        color: #999;
+        max-width: 480px;
+        text-align: center;
+        line-height: 1.7;
+      }
+
+      a.play-btn {
+        display: inline-block;
+        padding: 0.75rem 2.5rem;
+        background: #e8d8a0;
+        color: #111;
+        text-decoration: none;
+        font-size: 1.1rem;
+        font-weight: bold;
+        letter-spacing: 0.05em;
+        transition: background 0.2s;
+      }
+
+      a.play-btn:hover {
+        background: #fff3c0;
+      }
+
+      footer {
+        position: absolute;
+        bottom: 1.5rem;
+        font-size: 0.8rem;
+        color: #444;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🐀 RatVenture</h1>
+    <p>
+      A browser-based dungeon crawler. Gather your party, venture into the sewer, and try not to get gnawed.
+    </p>
+    <a class="play-btn" href="https://play.ratventure.online">▶ Play Now</a>
+    <footer>ratventure.online</footer>
+  </body>
+</html>

@@ -80,7 +80,7 @@ pub enum Reason {
 impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
-        const REFRESH: Duration = Duration::from_secs(3);
+        const REFRESH: Duration = Duration::from_secs(1);
         let mut last_refresh = Instant::now();
         let mut event_reader = EventStream::new();
 
@@ -135,6 +135,19 @@ impl App {
                 App::handle_key_wasm(app2.clone(), key_event).await;
                 term2.borrow_mut().draw(|f| app2.borrow().render_frame(f)).ok();
             });
+        });
+
+        // Poll server state every 3 seconds (mirrors native refresh loop)
+        let app_p = app.clone();
+        let term_p = terminal.clone();
+        spawn_local(async move {
+            use gloo_timers::future::IntervalStream;
+            use futures::StreamExt;
+            let mut stream = IntervalStream::new(1_000);
+            while stream.next().await.is_some() {
+                App::wasm_poll(app_p.clone()).await;
+                term_p.borrow_mut().draw(|f| app_p.borrow().render_frame(f)).ok();
+            }
         });
     }
 
@@ -657,7 +670,7 @@ impl App {
         let update = {
             let mut a = app.borrow_mut();
             if let Some(c) = a.active_character.as_mut() {
-                c.unit.energy = (c.unit.energy + 5).min(c.unit.max_energy);
+                c.unit.energy = (c.unit.energy + 7).min(c.unit.max_energy);
             }
             a.active_user.as_ref().zip(a.active_character.as_ref()).map(|(u, c)| (u.id, c.unit))
         };
@@ -698,6 +711,84 @@ impl App {
             a.state = AppState::Party;
         } else {
             app.borrow_mut().state = AppState::Tavern(TavernState::Main);
+        }
+    }
+
+    /// Periodic poll — mirrors the native `refresh_party_state` / `refresh_quest_state` loop.
+    #[cfg(target_arch = "wasm32")]
+    async fn wasm_poll(app: std::rc::Rc<std::cell::RefCell<Self>>) {
+        let client = app.borrow().client.clone();
+        let (has_quest, has_party, uid) = {
+            let a = app.borrow();
+            (a.active_quest.is_some(), a.active_party.is_some(), a.active_user.as_ref().map(|u| u.id))
+        };
+        let Some(uid) = uid else { return };
+
+        if has_quest {
+            // Sync quest state with server
+            let quest_id = app.borrow().active_quest.as_ref().map(|q| q.id);
+            if let Some(qid) = quest_id {
+                match client.get_quest(qid).await {
+                    Ok(updated) => {
+                        let (enc_changed, enc_type_changed) = {
+                            let a = app.borrow();
+                            let enc_changed = a.active_quest.as_ref()
+                                .map(|q| q.current_encounter != updated.current_encounter)
+                                .unwrap_or(false);
+                            let idx = updated.current_encounter as usize;
+                            let old_is_npc = a.active_quest.as_ref()
+                                .and_then(|q| q.encounters.get(idx))
+                                .map(|e| matches!(e, ratback_types::quest_data::Encounter::NpcEncounter(_)))
+                                .unwrap_or(false);
+                            let new_is_combat = updated.encounters.get(idx)
+                                .map(|e| matches!(e, ratback_types::quest_data::Encounter::CombatEncounter(_)))
+                                .unwrap_or(false);
+                            (enc_changed, old_is_npc && new_is_combat)
+                        };
+                        {
+                            let mut a = app.borrow_mut();
+                            if let Some(q) = a.active_quest.as_mut() {
+                                q.current_encounter = updated.current_encounter;
+                                q.encounters = updated.encounters;
+                                q.current_node_id = updated.current_node_id.clone();
+                            }
+                        }
+                        if enc_changed || enc_type_changed {
+                            App::wasm_check_current_encounter(&app, &client).await;
+                        }
+                        // Refresh party HP
+                        App::wasm_fetch_party_members(&app, &client).await;
+                    }
+                    Err(_) => {
+                        // Quest ended — fall back to party or tavern
+                        if let Ok(updated) = client.get_character(uid).await {
+                            app.borrow_mut().active_character = Some(updated);
+                        }
+                        let party_id = app.borrow().active_party.as_ref().map(|p| p.id);
+                        app.borrow_mut().active_quest = None;
+                        if let Some(pid) = party_id {
+                            let members = client.get_party_members_for_party(pid).await.unwrap_or_default();
+                            let mut a = app.borrow_mut();
+                            a.party_members = members;
+                            a.state = AppState::Party;
+                        } else {
+                            app.borrow_mut().state = AppState::Tavern(TavernState::Main);
+                        }
+                    }
+                }
+            }
+        } else if has_party {
+            // Refresh party members and check if someone started a quest
+            let party_id = app.borrow().active_party.as_ref().map(|p| p.id);
+            if let Some(pid) = party_id {
+                let members = client.get_party_members_for_party(pid).await.unwrap_or_default();
+                app.borrow_mut().party_members = members;
+            }
+            if let Ok(quest) = client.get_active_quest_for_user(uid).await {
+                app.borrow_mut().active_quest = Some(quest);
+                App::wasm_fetch_party_members(&app, &client).await;
+                App::wasm_check_current_encounter(&app, &client).await;
+            }
         }
     }
 
@@ -1999,7 +2090,7 @@ impl App {
 
     async fn regen_energy(&mut self) {
         if let Some(c) = self.active_character.as_mut() {
-            c.unit.energy = (c.unit.energy + 5).min(c.unit.max_energy);
+            c.unit.energy = (c.unit.energy + 7).min(c.unit.max_energy);
         }
         let update = self.active_user.as_ref()
             .zip(self.active_character.as_ref())
