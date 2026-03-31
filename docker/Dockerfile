@@ -9,14 +9,16 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY ratback-types/Cargo.toml ./ratback-types/Cargo.toml
 COPY backend/Cargo.toml ./backend/Cargo.toml
+COPY rat-client/Cargo.toml ./rat-client/Cargo.toml
 
 # Cache dependencies with dummy sources
-RUN mkdir -p backend/src ratback-types/src \
+RUN mkdir -p backend/src ratback-types/src rat-client/src \
     && echo "fn main() {}" > backend/src/main.rs \
     && echo "" > backend/src/lib.rs \
     && echo "" > ratback-types/src/lib.rs \
+    && echo "fn main() {}" > rat-client/src/main.rs \
     && cargo build --release -p ratback \
-    && rm -rf backend/src ratback-types/src
+    && rm -rf backend/src ratback-types/src rat-client/src
 
 # Build the real binary
 COPY backend/src ./backend/src
