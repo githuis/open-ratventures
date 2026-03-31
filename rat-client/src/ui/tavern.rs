@@ -7,12 +7,9 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 
+use ratback_types::{RENOWN_SEWER_DEPTHS, RENOWN_FUNGAL_WARRENS, RENOWN_ABYSS};
 use crate::app::{App, TavernState};
 use crate::ui::{C_ALERT, C_ACCENT, C_PANEL};
-
-const DEPTHS_RENOWN: u32 = 5;
-const WARRENS_RENOWN: u32 = 10;
-const ABYSS_RENOWN: u32 = 20;
 
 impl App {
     pub(crate) fn render_adventure_menu(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -42,17 +39,17 @@ impl App {
             }
         };
 
-        let abyss_label = if renown >= ABYSS_RENOWN { "The Abyss" } else { "????" };
-        let abyss_note: Option<&'static str> = if renown >= ABYSS_RENOWN { Some("something stirs below") } else { None };
+        let abyss_label = if renown >= RENOWN_ABYSS { "The Abyss" } else { "????" };
+        let abyss_note: Option<&'static str> = if renown >= RENOWN_ABYSS { Some("something stirs below") } else { None };
 
         let lines = vec![
             Line::from(""),
             Line::from(Span::styled("  Where do you venture?", text_style)),
             Line::from(""),
             zone("[1]", "Top-level Sewers", Some("common rats and ruffians"), true),
-            zone("[2]", "Sewer Depths", Some("darker, more dangerous"), renown >= DEPTHS_RENOWN),
-            zone("[3]", "The Fungal Warrens", Some("bioluminescent caverns below the sewers"), renown >= WARRENS_RENOWN),
-            zone("[4]", abyss_label, abyss_note, renown >= ABYSS_RENOWN),
+            zone("[2]", "Sewer Depths", Some("darker, more dangerous"), renown >= RENOWN_SEWER_DEPTHS),
+            zone("[3]", "The Fungal Warrens", Some("bioluminescent caverns below the sewers"), renown >= RENOWN_FUNGAL_WARRENS),
+            zone("[4]", abyss_label, abyss_note, renown >= RENOWN_ABYSS),
             Line::from(Span::styled("  [5]  Follow Clues  — (coming soon)", dim)),
             Line::from(""),
             Line::from(vec![

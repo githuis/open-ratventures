@@ -15,3 +15,7 @@ rat-client/dist/
 
 # Env
 .env
+
+# Deploy scripts (contain server details)
+deploy.ps1
+commit-deploy.ps1

@@ -16,6 +16,7 @@ async fn main() -> Result<()> {
 
     let app = Router::new()
         .route("/api/hello-world", get(hello_world))
+        .route("/api/version", get(version))
         .route("/api/register", post(register))
         .nest("/api", ratback::party::routes())
         .nest("/api", ratback::quest::routes())
@@ -37,6 +38,10 @@ async fn main() -> Result<()> {
 
 async fn hello_world() -> &'static str {
     "Hello World"
+}
+
+async fn version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
 }
 
 async fn register(

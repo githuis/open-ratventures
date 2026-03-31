@@ -31,9 +31,14 @@ impl App {
             ])
             .split(inner)[1];
 
+        let client_ver = env!("CARGO_PKG_VERSION");
+        let backend_ver = self.backend_version.as_deref().unwrap_or("...");
+        let version_line = format!("v{client_ver}c  v{backend_ver}b");
+
         let lines = vec![
             Line::from(""),
             Line::from(Span::styled("O P E N   R A T V E N T U R E S", text_style)),
+            Line::from(Span::styled(version_line, Style::default().fg(C_ACCENT))),
             Line::from(""),
             Line::from(Span::styled("────────────────────────────────", Style::default().fg(C_ACCENT))),
             Line::from(""),

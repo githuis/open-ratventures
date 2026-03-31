@@ -14,16 +14,13 @@ use futures::StreamExt;
 use ratback_types::{
     data::{CharacterWrapper, InventoryItem, ItemEffect, User},
     quest_data::{Dialogue, DialogueOutcome, Encounter, Party, PartySummary, Quest},
+    AREA_SEWERS, AREA_SEWER_DEPTHS, AREA_FUNGAL_WARRENS, AREA_ABYSS,
+    RENOWN_SEWER_DEPTHS, RENOWN_FUNGAL_WARRENS, RENOWN_ABYSS,
 };
 
 use crate::client::Rattp;
 use crate::tui;
 use crate::ui::C_TEXT;
-
-pub(crate) const AREA_SEWERS: &str = "sewers";
-pub(crate) const AREA_SEWER_DEPTHS: &str = "sewer_depths";
-pub(crate) const AREA_FUNGAL_WARRENS: &str = "fungal_warrens";
-pub(crate) const AREA_ABYSS: &str = "abyss";
 
 #[derive(Debug, Default)]
 pub struct App {
@@ -38,6 +35,7 @@ pub struct App {
     pub client: Rattp,
     pub last_combat_damage: Option<(i32, String)>,
     pub inventory: Vec<InventoryItem>,
+    pub backend_version: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -80,7 +78,8 @@ pub enum Reason {
 impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
-        const REFRESH: Duration = Duration::from_secs(1);
+        self.backend_version = self.client.get_backend_version().await;
+        const REFRESH: Duration = Duration::from_millis(300);
         let mut last_refresh = Instant::now();
         let mut event_reader = EventStream::new();
 
@@ -126,6 +125,18 @@ impl App {
             .draw(|frame| app.borrow().render_frame(frame))
             .expect("initial draw");
 
+        // Fetch backend version once on startup
+        {
+            let app_v = app.clone();
+            let term_v = terminal.clone();
+            spawn_local(async move {
+                let client = app_v.borrow().client.clone();
+                let v = client.get_backend_version().await;
+                app_v.borrow_mut().backend_version = v;
+                term_v.borrow_mut().draw(|f| app_v.borrow().render_frame(f)).ok();
+            });
+        }
+
         let app_c = app.clone();
         let term_c = terminal.clone();
         terminal.borrow().on_key_event(move |key_event| {
@@ -143,7 +154,7 @@ impl App {
         spawn_local(async move {
             use gloo_timers::future::IntervalStream;
             use futures::StreamExt;
-            let mut stream = IntervalStream::new(1_000);
+            let mut stream = IntervalStream::new(300);
             while stream.next().await.is_some() {
                 App::wasm_poll(app_p.clone()).await;
                 term_p.borrow_mut().draw(|f| app_p.borrow().render_frame(f)).ok();
@@ -443,9 +454,9 @@ impl App {
             let renown = app.borrow().active_character.as_ref().map(|c| c.character.renown).unwrap_or(0);
             match key.code {
                 KeyCode::Char('1') => App::wasm_start_quest(&app, &client, crate::app::AREA_SEWERS).await,
-                KeyCode::Char('2') if renown >= 5 => App::wasm_start_quest(&app, &client, crate::app::AREA_SEWER_DEPTHS).await,
-                KeyCode::Char('3') if renown >= 10 => App::wasm_start_quest(&app, &client, crate::app::AREA_FUNGAL_WARRENS).await,
-                KeyCode::Char('4') if renown >= 20 => App::wasm_start_quest(&app, &client, crate::app::AREA_ABYSS).await,
+                KeyCode::Char('2') if renown >= RENOWN_SEWER_DEPTHS => App::wasm_start_quest(&app, &client, AREA_SEWER_DEPTHS).await,
+                KeyCode::Char('3') if renown >= RENOWN_FUNGAL_WARRENS => App::wasm_start_quest(&app, &client, AREA_FUNGAL_WARRENS).await,
+                KeyCode::Char('4') if renown >= RENOWN_ABYSS => App::wasm_start_quest(&app, &client, AREA_ABYSS).await,
                 KeyCode::Esc | KeyCode::Char('q') => { app.borrow_mut().state = AppState::Tavern(TavernState::Main); }
                 _ => {}
             }
@@ -1390,9 +1401,9 @@ impl App {
                 let renown = self.active_character.as_ref().map(|c| c.character.renown).unwrap_or(0);
                 match key_event.code {
                     KeyCode::Char('1') => self.start_quest(AREA_SEWERS).await,
-                    KeyCode::Char('2') if renown >= 5 => self.start_quest(AREA_SEWER_DEPTHS).await,
-                    KeyCode::Char('3') if renown >= 10 => self.start_quest(AREA_FUNGAL_WARRENS).await,
-                    KeyCode::Char('4') if renown >= 20 => self.start_quest(AREA_ABYSS).await,
+                    KeyCode::Char('2') if renown >= RENOWN_SEWER_DEPTHS => self.start_quest(AREA_SEWER_DEPTHS).await,
+                    KeyCode::Char('3') if renown >= RENOWN_FUNGAL_WARRENS => self.start_quest(AREA_FUNGAL_WARRENS).await,
+                    KeyCode::Char('4') if renown >= RENOWN_ABYSS => self.start_quest(AREA_ABYSS).await,
                     KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Main),
                     _ => {}
                 }

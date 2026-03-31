@@ -31,6 +31,10 @@ impl Rattp {
      * Users
      ***********/
 
+    pub async fn get_backend_version(&self) -> Option<String> {
+        self.http.get(self.destination("version")).send().await.ok()?.text().await.ok()
+    }
+
     pub async fn get_hello(&self) -> Result<String, Box<dyn Error>> {
         let response: String = self.http.get(self.destination("hello-world")).send().await?.text().await?;
         Ok(response)
