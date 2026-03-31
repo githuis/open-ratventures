@@ -6,7 +6,5 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ratback-db:/app/db
-
-volumes:
-  ratback-db:
+      - /var/lib/ratventures:/app/db
+    restart: unless-stopped
