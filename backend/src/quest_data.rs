@@ -32,3 +32,9 @@ pub struct UpdateEncountersRequest {
     pub current_node_id: Option<String>,
     pub encounters: Vec<Encounter>,
 }
+
+#[derive(Deserialize)]
+pub struct GiveClueRequest {
+    pub character_id: i32,
+    pub clue_id: String,
+}

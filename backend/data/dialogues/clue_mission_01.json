@@ -1,0 +1,22 @@
+{
+  "id": "clue_mission_01",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "An old rat leans against the pipe wall, studying a piece of torn paper. Scratched onto it: a series of marks, repeating, like a signature or a warning. 'Found it down the left passage,' they say. 'Someone's been carving these into the old pipes. Deeper than anyone goes regularly.' They fold the paper and offer it to you. 'I'm not going to look into it. But someone should.'",
+      "choices": [
+        {
+          "text": "Take the paper and investigate.",
+          "next": null,
+          "outcome": { "GiveClue": { "clue_id": "clue_mission_01" } }
+        },
+        {
+          "text": "Leave it alone.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 0, "renown": 0, "heal": 0 } }
+        }
+      ]
+    }
+  },
+  "areas": ["sewers"]
+}

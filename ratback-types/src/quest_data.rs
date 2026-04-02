@@ -72,6 +72,40 @@ pub enum DialogueOutcome {
     GiveItem { item_name: String, cost: i32 },
     Escape,
     NextEncounter,
+    GiveClue { clue_id: String },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MissionDef {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub clue_id: String,
+    pub encounters: Vec<Encounter>,
+    pub completion_reward: MissionReward,
+    pub is_final: bool,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct MissionReward {
+    pub coins: i32,
+    pub renown: i32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MissionStatus {
+    pub mission_id: String,
+    pub title: String,
+    pub description: String,
+    pub state: MissionState,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum MissionState {
+    Locked,
+    Ready,
+    InProgress,
+    Complete,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

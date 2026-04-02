@@ -6,13 +6,14 @@ use color_eyre::Result;
 use ratback::db::DbConnection;
 use tokio::net::TcpListener;
 use ratback::data::User;
-use static_string_loader::{load_dialogues, load_enemies};
+use static_string_loader::{load_dialogues, load_enemies, load_missions};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let db: DbConnection = DbConnection::new().await.unwrap();
     let dialogues = load_dialogues();
     let enemies = load_enemies();
+    let missions = load_missions();
 
     let app = Router::new()
         .route("/api/hello-world", get(hello_world))
@@ -21,6 +22,7 @@ async fn main() -> Result<()> {
         .nest("/api", ratback::party::routes())
         .nest("/api", ratback::quest::routes())
         .nest("/api", ratback::users::routes())
+        .layer(Extension(missions))
         .layer(Extension(enemies))
         .layer(Extension(dialogues))
         .layer(Extension(db))

@@ -9,6 +9,7 @@ ratback-types = { path = "../ratback-types" }
 reqwest = { version = "0.13.2", features = ["json"] }
 serde = "1.0.228"
 serde_json = "1.0.149"
+throbber-widgets-tui = "0.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 crossterm = { version = "0.29.0", features = ["event-stream"] }

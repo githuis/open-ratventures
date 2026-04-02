@@ -1,0 +1,19 @@
+{
+  "id": "mission_02",
+  "title": "The Deep Sound",
+  "description": "A low hum rises from below the sewer depths. Others have heard it. None have found its source.",
+  "clue_id": "clue_mission_02",
+  "is_final": false,
+  "encounters": [
+    { "CombatEncounter": { "monsters": [
+      { "unit": { "id": 0, "ref_id": 0, "health": 20, "energy": 10, "max_health": 20, "max_energy": 10 }, "name": "Depth Crawler", "attack": 5, "items": [], "areas": [] }
+    ], "turn": 0 } },
+    { "NpcEncounter": "mission_02_listener" },
+    { "CombatEncounter": { "monsters": [
+      { "unit": { "id": 0, "ref_id": 0, "health": 18, "energy": 10, "max_health": 18, "max_energy": 10 }, "name": "Resonance Hound", "attack": 6, "items": [], "areas": [] },
+      { "unit": { "id": 0, "ref_id": 0, "health": 18, "energy": 10, "max_health": 18, "max_energy": 10 }, "name": "Resonance Hound", "attack": 6, "items": [], "areas": [] }
+    ], "turn": 0 } },
+    { "NpcEncounter": "mission_02_origin" }
+  ],
+  "completion_reward": { "coins": 20, "renown": 3 }
+}

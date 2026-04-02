@@ -1,0 +1,17 @@
+{
+  "id": "mission_01_source",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "The marks end here — at a wall covered floor to ceiling in scratched symbols, dense and overlapping. In the centre, something has been hollowed out: a niche, empty now, perfectly sized for something round. Below the niche, a single phrase scratched larger than the rest: THE HINGE WILL OPEN. Whatever was kept here — it's gone.",
+      "choices": [
+        {
+          "text": "Note the phrase and withdraw.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 10, "renown": 2, "heal": 0 } }
+        }
+      ]
+    }
+  },
+  "areas": []
+}

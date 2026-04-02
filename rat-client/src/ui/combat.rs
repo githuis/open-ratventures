@@ -65,6 +65,9 @@ impl App {
             " [F] Attack — ".into(),
             Span::styled("5 dmg to first living enemy", text_style),
         ]));
+        lines.push(Line::from(vec![
+            " [V] View inventory".into(),
+        ]));
 
         if !self.inventory.is_empty() {
             lines.push(Line::from(""));

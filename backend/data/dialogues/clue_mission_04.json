@@ -1,0 +1,17 @@
+{
+  "id": "clue_mission_04",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "There is nothing here but a rat sitting in the dark, perfectly still, facing the deepest part of the Abyss. When you get close enough, you see their eyes are open but unfocused — not the blankness of the spore cult, something older. They speak without turning. 'It knows you've been sealing its doors. It's waiting at the bottom now. Not hiding. Waiting.' A pause. 'It's been there since before the tunnels. It will be there after. The only question is whether you give it a reason not to come up.'",
+      "choices": [
+        {
+          "text": "Then you go down.",
+          "next": null,
+          "outcome": { "GiveClue": { "clue_id": "clue_mission_04" } }
+        }
+      ]
+    }
+  },
+  "areas": ["abyss"]
+}

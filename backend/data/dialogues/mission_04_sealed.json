@@ -1,0 +1,17 @@
+{
+  "id": "mission_04_sealed",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "Where the shade was, there is nothing. Not darkness — nothing. A clean absence, like a word removed from a sentence. Around it, the Abyss is still. The hum is gone. The marks on the pipes have gone dark. Somewhere above you, far up through the tunnels, you can hear water dripping and rats going about their business, and none of them know what almost came through.",
+      "choices": [
+        {
+          "text": "It's done. Go home.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 50, "renown": 10, "heal": 50 } }
+        }
+      ]
+    }
+  },
+  "areas": []
+}

@@ -1,0 +1,22 @@
+{
+  "id": "clue_mission_03",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat with eyes that glow faintly blue blinks at you, then shakes their head hard. 'Sorry. I keep — drifting. There's something in the deeper Warrens. A smell, or a sound, or neither — something that makes you want to walk toward it and not stop.' They sit down heavily. 'Three of my group didn't come back. I watched them walk away with the same expression. Calm. Decided.' They look at you directly. 'Don't go alone.'",
+      "choices": [
+        {
+          "text": "Mark the location and prepare.",
+          "next": null,
+          "outcome": { "GiveClue": { "clue_id": "clue_mission_03" } }
+        },
+        {
+          "text": "This isn't your problem.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 5, "renown": 0, "heal": 0 } }
+        }
+      ]
+    }
+  },
+  "areas": ["fungal_warrens"]
+}

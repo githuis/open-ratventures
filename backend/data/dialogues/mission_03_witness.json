@@ -1,0 +1,42 @@
+{
+  "id": "mission_03_witness",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat stands at the edge of the bioluminescent glow, not moving toward it, not moving away. Their eyes are filmed with something faintly blue. 'I was part of it,' they say flatly. 'Three days ago I would have defended the altar with my life. Then the spore broke its hold and I could think again.' They look at their own hands. 'They all move together now. Like they share one intention. It comes from the altar chamber. If you go there — don't breathe.'",
+      "choices": [
+        {
+          "text": "Ask how to break the altar's hold.",
+          "next": "break",
+          "outcome": null
+        },
+        {
+          "text": "Ask what the cult wants.",
+          "next": "wants",
+          "outcome": null
+        }
+      ]
+    },
+    "break": {
+      "text": "'Destroy the anchor spore at the base. It's the size of a fist, darker than the rest, attached to the stone. The others will fight you — they don't have a choice. Don't hate them for it.' They hand you a wrapped cloth. 'Hold this over your face. It won't block everything but it'll buy time.'",
+      "choices": [
+        {
+          "text": "Take the cloth and go.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 0, "renown": 0, "heal": 12 } }
+        }
+      ]
+    },
+    "wants": {
+      "text": "'A host. Something large. The spore network is patient — it's been growing for years, but it wants a body big enough to reach the surface. It's been testing the creatures down here. We were practice.' They look toward the glow. 'It's close to ready.'",
+      "choices": [
+        {
+          "text": "You have to end this now.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 10, "renown": 1, "heal": 0 } }
+        }
+      ]
+    }
+  },
+  "areas": []
+}

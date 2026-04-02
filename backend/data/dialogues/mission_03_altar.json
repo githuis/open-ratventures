@@ -1,0 +1,42 @@
+{
+  "id": "mission_03_altar",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "The altar chamber is silent now. The anchor spore, destroyed, has left a black smear on the stone. The bioluminescence around it has gone dark. Around you, scattered across the floor, creatures sit dazed and still — freed, but emptied. One of them, a large rat with a broken horn, looks up at you with clear eyes. 'How long?' they ask. You don't have an answer they'd want.",
+      "choices": [
+        {
+          "text": "Tell them it's over.",
+          "next": "over",
+          "outcome": null
+        },
+        {
+          "text": "Ask if there are others like this.",
+          "next": "others",
+          "outcome": null
+        }
+      ]
+    },
+    "over": {
+      "text": "They nod slowly. 'Then we rebuild.' They press something into your hand — a carved token, old stone, warm from being held. 'The Warrens owe you a debt.' Around you, the others slowly begin to stir.",
+      "choices": [
+        {
+          "text": "Accept the token and leave.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 20, "renown": 2, "heal": 0 } }
+        }
+      ]
+    },
+    "others": {
+      "text": "'There are three other anchor points. I don't know where — the knowledge was shared through the network and I only kept fragments.' Their expression hardens. 'But I remember one thing: the network was planted. This wasn't nature. Someone seeded the spores intentionally. Someone who wanted a door opened.'",
+      "choices": [
+        {
+          "text": "The door in the depths. It connects.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 15, "renown": 3, "heal": 5 } }
+        }
+      ]
+    }
+  },
+  "areas": []
+}

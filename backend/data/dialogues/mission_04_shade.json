@@ -1,0 +1,42 @@
+{
+  "id": "mission_04_shade",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "At the edge of the Abyss, something waits that is not quite a creature and not quite a shadow. It speaks without a mouth. 'You closed the outer doors. Industrious. But the hinge was only ever a lock on this side.' A pause that feels like cold water. 'I have been here longer than the tunnels. I was here when the first rat dug the first passage. I am what they were digging toward.'",
+      "choices": [
+        {
+          "text": "Ask what it wants.",
+          "next": "wants",
+          "outcome": null
+        },
+        {
+          "text": "This ends here.",
+          "next": "refuse",
+          "outcome": null
+        }
+      ]
+    },
+    "wants": {
+      "text": "'What everything wants. To continue. The world above is warm and full of small moving things. I have been patient.' The darkness shifts. 'You have been persistent. I can respect persistence. Step aside.'",
+      "choices": [
+        {
+          "text": "No.",
+          "next": "refuse",
+          "outcome": null
+        }
+      ]
+    },
+    "refuse": {
+      "text": "The shade regards you for a long moment. Then: 'All right.' The darkness collapses inward. Everything goes cold and loud at once. And then — you fight.",
+      "choices": [
+        {
+          "text": "Stand your ground.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 0, "renown": 0, "heal": 20 } }
+        }
+      ]
+    }
+  },
+  "areas": []
+}

@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use ratback_types::{data::{CharacterWrapper, InventoryItem, ShopItem, User}, quest_data::{Dialogue, Party, PartySummary, Quest, QuestSummary}};
+use ratback_types::{data::{CharacterWrapper, InventoryItem, ShopItem, User}, quest_data::{Dialogue, MissionStatus, Party, PartySummary, Quest, QuestSummary}};
 use reqwest::Client;
 
 const DEFAULT_HOST: &str = "http://localhost:3000/api/";
@@ -196,6 +196,27 @@ impl Rattp {
 
     pub async fn get_party_members_for_party(&self, party_id: i32) -> Result<Vec<CharacterWrapper>, Box<dyn Error>> {
         let response = self.http.get(self.destination(&format!("party/{party_id}/members"))).send().await?.text().await?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    /***********
+     * Missions
+     ***********/
+
+    pub async fn get_missions(&self, character_id: i32) -> Result<Vec<MissionStatus>, Box<dyn Error>> {
+        let response = self.http.get(self.destination(&format!("missions/{character_id}"))).send().await?.text().await?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub async fn post_clue(&self, character_id: i32, clue_id: &str) -> Result<Option<MissionStatus>, Box<dyn Error>> {
+        let body = serde_json::json!({ "character_id": character_id, "clue_id": clue_id });
+        let response = self.http.post(self.destination("clue")).json(&body).send().await?.text().await?;
+        Ok(serde_json::from_str(&response)?)
+    }
+
+    pub async fn post_new_quest_mission(&self, user_id: i32, mission_id: &str) -> Result<Quest, Box<dyn Error>> {
+        let body = serde_json::json!({ "user_id": user_id, "area": "", "mission_id": mission_id });
+        let response = self.http.post(self.destination("quest")).json(&body).send().await?.text().await?;
         Ok(serde_json::from_str(&response)?)
     }
 

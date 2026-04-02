@@ -5,7 +5,9 @@
       "Bash(cargo tree:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(cargo build:*)",
-      "Bash(trunk build:*)"
+      "Bash(trunk build:*)",
+      "Bash(grep -n \"CREATE TABLE\\\\|ALTER TABLE\" /d/projects/open-ratventures/backend/migrations/*.sql)",
+      "WebFetch(domain:docs.rs)"
     ]
   }
 }

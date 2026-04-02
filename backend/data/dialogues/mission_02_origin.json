@@ -1,0 +1,42 @@
+{
+  "id": "mission_02_origin",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "The source of the hum: a chamber carved — not built, carved — into the bedrock below the sewers. In the centre, a stone lattice the height of a rat, vibrating at a frequency you feel in your back teeth. Around its base: ash, offerings, things that were once alive. The lattice is not a machine. It is a door. And it is not fully closed.",
+      "choices": [
+        {
+          "text": "Try to force it shut.",
+          "next": "shut",
+          "outcome": null
+        },
+        {
+          "text": "Leave it and report back.",
+          "next": "leave",
+          "outcome": null
+        }
+      ]
+    },
+    "shut": {
+      "text": "You press your weight against the lattice. It resists — not physically, but in the way a sound resists being silenced. For a moment the hum intensifies, then drops an octave. The gap narrows. Not closed. Not open. Waiting. You step back, ears ringing.",
+      "choices": [
+        {
+          "text": "Withdraw while you can.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 15, "renown": 2, "heal": 0 } }
+        }
+      ]
+    },
+    "leave": {
+      "text": "You back away carefully. The hum follows you for three tunnels before fading. Whatever is on the other side of that door — it noticed you.",
+      "choices": [
+        {
+          "text": "Return to the surface.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 10, "renown": 1, "heal": 10 } }
+        }
+      ]
+    }
+  },
+  "areas": []
+}

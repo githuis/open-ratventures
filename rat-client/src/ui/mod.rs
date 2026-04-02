@@ -4,6 +4,7 @@ pub mod dialogue;
 pub mod input;
 pub mod inventory;
 pub mod left_panel;
+pub mod missions;
 pub mod party;
 pub mod quest_lobby;
 pub mod tavern;

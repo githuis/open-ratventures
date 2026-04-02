@@ -42,7 +42,7 @@ impl App {
             "Refresh".into(),
         ]));
         lines.push(Line::from(vec![
-            Span::styled(" [Esc] ", text_style),
+            Span::styled(" [Q] ", text_style),
             "Back".into(),
         ]));
 

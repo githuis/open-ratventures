@@ -1,0 +1,19 @@
+{
+  "id": "mission_04",
+  "title": "The Final Descent",
+  "description": "The Abyss calls. Whatever has been pulling the strings waits at the bottom.",
+  "clue_id": "clue_mission_04",
+  "is_final": true,
+  "encounters": [
+    { "CombatEncounter": { "monsters": [
+      { "unit": { "id": 0, "ref_id": 0, "health": 30, "energy": 10, "max_health": 30, "max_energy": 10 }, "name": "Void Sentinel", "attack": 8, "items": [], "areas": [] },
+      { "unit": { "id": 0, "ref_id": 0, "health": 20, "energy": 10, "max_health": 20, "max_energy": 10 }, "name": "Void Sentinel", "attack": 6, "items": [], "areas": [] }
+    ], "turn": 0 } },
+    { "NpcEncounter": "mission_04_shade" },
+    { "CombatEncounter": { "monsters": [
+      { "unit": { "id": 0, "ref_id": 0, "health": 50, "energy": 10, "max_health": 50, "max_energy": 10 }, "name": "The Unravelling", "attack": 10, "items": [], "areas": [] }
+    ], "turn": 0 } },
+    { "NpcEncounter": "mission_04_sealed" }
+  ],
+  "completion_reward": { "coins": 50, "renown": 10 }
+}

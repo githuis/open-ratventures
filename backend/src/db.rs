@@ -519,6 +519,120 @@ impl DbConnection {
         Ok(CharacterWrapper { character, unit })
     }
 
+    pub async fn new_mission_quest(&self, encounters: Vec<Encounter>, user_id: i32, mission_id: &str) -> Result<Quest> {
+        let encounters_json = serde_json::to_string(&encounters)?;
+        let quest_id =
+            sqlx::query("INSERT INTO quests (current_encounter, encounters_json, mission_id) VALUES (0, $1, $2)")
+                .bind(&encounters_json)
+                .bind(mission_id)
+                .execute(&self.pool)
+                .await?
+                .last_insert_rowid() as i32;
+
+        let party = self.get_party_for_user(user_id).await;
+        if let Some(p) = party {
+            let char_ids: Vec<i32> =
+                sqlx::query_scalar("SELECT character_id FROM party_members WHERE party_id = $1")
+                    .bind(p.id)
+                    .fetch_all(&self.pool)
+                    .await?;
+            for (slot, char_id) in char_ids.into_iter().enumerate() {
+                sqlx::query(
+                    "INSERT OR IGNORE INTO quest_members (quest_id, character_id, slot_index) VALUES ($1, $2, $3)",
+                )
+                .bind(quest_id)
+                .bind(char_id)
+                .bind(slot as i32)
+                .execute(&self.pool)
+                .await?;
+                sqlx::query(
+                    "INSERT INTO character_missions (character_id, mission_id, completed, quest_id)
+                     VALUES ($1, $2, 0, $3)
+                     ON CONFLICT(character_id, mission_id) DO UPDATE SET quest_id = excluded.quest_id",
+                )
+                .bind(char_id)
+                .bind(mission_id)
+                .bind(quest_id)
+                .execute(&self.pool)
+                .await?;
+            }
+        } else {
+            self.join_quest(quest_id, user_id).await?;
+            let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
+                .bind(user_id)
+                .fetch_one(&self.pool)
+                .await?;
+            sqlx::query(
+                "INSERT INTO character_missions (character_id, mission_id, completed, quest_id)
+                 VALUES ($1, $2, 0, $3)
+                 ON CONFLICT(character_id, mission_id) DO UPDATE SET quest_id = excluded.quest_id",
+            )
+            .bind(char_id)
+            .bind(mission_id)
+            .bind(quest_id)
+            .execute(&self.pool)
+            .await?;
+        }
+
+        Ok(Quest { id: quest_id, encounters, current_encounter: 0, current_node_id: None })
+    }
+
+    /// Grant a clue to a character. Returns true if newly granted (false if already had it).
+    pub async fn give_clue(&self, character_id: i32, clue_id: &str) -> Result<bool> {
+        let rows = sqlx::query(
+            "INSERT OR IGNORE INTO character_clues (character_id, clue_id) VALUES ($1, $2)",
+        )
+        .bind(character_id)
+        .bind(clue_id)
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        Ok(rows > 0)
+    }
+
+    pub async fn complete_mission(&self, character_id: i32, mission_id: &str) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO character_missions (character_id, mission_id, completed, quest_id)
+             VALUES ($1, $2, 1, NULL)
+             ON CONFLICT(character_id, mission_id) DO UPDATE SET completed = 1, quest_id = NULL",
+        )
+        .bind(character_id)
+        .bind(mission_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn has_clue(&self, character_id: i32, clue_id: &str) -> Result<bool> {
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM character_clues WHERE character_id = $1 AND clue_id = $2")
+                .bind(character_id)
+                .bind(clue_id)
+                .fetch_one(&self.pool)
+                .await?;
+        Ok(count > 0)
+    }
+
+    pub async fn get_mission_states(&self, character_id: i32) -> Result<Vec<(String, bool, bool, Option<i32>)>> {
+        // Returns (mission_id, completed, quest_id) for rows that exist
+        let rows: Vec<(String, bool, Option<i32>)> = sqlx::query_as(
+            "SELECT mission_id, completed, quest_id FROM character_missions WHERE character_id = $1",
+        )
+        .bind(character_id)
+        .fetch_all(&self.pool)
+        .await?;
+        // (mission_id, completed, in_progress, quest_id)
+        Ok(rows.into_iter().map(|(mid, completed, qid)| (mid, completed, qid.is_some(), qid)).collect())
+    }
+
+    pub async fn get_clues(&self, character_id: i32) -> Result<Vec<String>> {
+        sqlx::query_scalar("SELECT clue_id FROM character_clues WHERE character_id = $1")
+            .bind(character_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(Into::into)
+    }
+
     pub async fn create_party(&self, user_id: i32) -> Result<Party> {
         let char_id: i32 = sqlx::query_scalar("SELECT id FROM characters WHERE user_id = $1")
             .bind(user_id)

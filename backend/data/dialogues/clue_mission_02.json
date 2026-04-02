@@ -1,0 +1,22 @@
+{
+  "id": "clue_mission_02",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat pressed flat against the curved pipe wall, eyes wide. 'Can you hear it?' they whisper. 'Started three days ago. Low. Constant. I thought it was the water pressure but it doesn't stop when the flow does.' They grab your arm briefly. 'It's coming from below the lower tunnels. Below where anyone digs. Something down there is running.'",
+      "choices": [
+        {
+          "text": "Listen carefully — they're right.",
+          "next": null,
+          "outcome": { "GiveClue": { "clue_id": "clue_mission_02" } }
+        },
+        {
+          "text": "It's probably nothing.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 3, "renown": 0, "heal": 0 } }
+        }
+      ]
+    }
+  },
+  "areas": ["sewer_depths"]
+}

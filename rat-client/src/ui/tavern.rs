@@ -54,7 +54,7 @@ impl App {
             Line::from(""),
             Line::from(vec![
                 "  ".into(),
-                Span::styled("[Esc]", text_style),
+                Span::styled("[Q]", text_style),
                 "  Back".into(),
             ]),
         ];
@@ -179,7 +179,7 @@ impl App {
                     " Navigate  ".into(),
                     Span::styled("[Enter]", text_style),
                     " Buy  ".into(),
-                    Span::styled("[Esc]", text_style),
+                    Span::styled("[Q]", text_style),
                     " Back".into(),
                 ]));
 

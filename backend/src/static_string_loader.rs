@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
-use ratback::quest_data::{Dialogue, Monster};
+use ratback::quest_data::{Dialogue, MissionDef, Monster};
 
 pub fn load_enemies() -> Arc<Vec<Monster>> {
     let candidates = ["backend/data/enemies", "data/enemies"];
@@ -50,4 +50,30 @@ pub fn load_dialogues() -> Arc<HashMap<String, Dialogue>> {
     }
     println!("Loaded {} dialogues: {:?}", map.len(), map.keys().collect::<Vec<_>>());
     Arc::new(map)
+}
+
+pub fn load_missions() -> Arc<Vec<MissionDef>> {
+    let candidates = ["backend/data/missions", "data/missions"];
+    let dir = candidates.iter().map(std::path::Path::new).find(|p| p.exists());
+
+    let mut missions = Vec::new();
+    if let Some(dir) = dir {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "json").unwrap_or(false) {
+                    match std::fs::read_to_string(&path)
+                        .ok()
+                        .and_then(|s| serde_json::from_str::<MissionDef>(&s).ok())
+                    {
+                        Some(m) => missions.push(m),
+                        None => eprintln!("Failed to parse mission '{}'", path.display()),
+                    }
+                }
+            }
+        }
+    }
+    missions.sort_by(|a, b| a.id.cmp(&b.id));
+    println!("Loaded {} missions", missions.len());
+    Arc::new(missions)
 }

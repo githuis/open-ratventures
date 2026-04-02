@@ -13,7 +13,7 @@ use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind};
 use futures::StreamExt;
 use ratback_types::{
     data::{CharacterWrapper, InventoryItem, ItemEffect, User},
-    quest_data::{Dialogue, DialogueOutcome, Encounter, Party, PartySummary, Quest},
+    quest_data::{Dialogue, DialogueOutcome, Encounter, MissionState, MissionStatus, Party, PartySummary, Quest},
     AREA_SEWERS, AREA_SEWER_DEPTHS, AREA_FUNGAL_WARRENS, AREA_ABYSS,
     RENOWN_SEWER_DEPTHS, RENOWN_FUNGAL_WARRENS, RENOWN_ABYSS,
 };
@@ -36,6 +36,10 @@ pub struct App {
     pub last_combat_damage: Option<(i32, String)>,
     pub inventory: Vec<InventoryItem>,
     pub backend_version: Option<String>,
+    pub missions: Vec<MissionStatus>,
+    pub clue_notification: Option<String>,
+    pub is_processing: bool,
+    pub spinner_tick: u8,
 }
 
 #[derive(Debug, Default)]
@@ -57,9 +61,11 @@ pub enum AppState {
     Dialogue { dialogue: Dialogue, current_node: String },
     PartyLobby { parties: Vec<PartySummary> },
     AdventureMenu,
+    MissionSelect { missions: Vec<MissionStatus>, selected: usize },
     Inventory { scroll: usize, selected: usize, previous: Box<AppState> },
     TargetSelect { item_index: usize, target_selected: usize, inv_scroll: usize, inv_item_selected: usize, return_to: Box<AppState> },
     GameOver,
+    Victory,
 }
 
 impl Default for AppState {
@@ -156,6 +162,7 @@ impl App {
             use futures::StreamExt;
             let mut stream = IntervalStream::new(300);
             while stream.next().await.is_some() {
+                { let mut a = app_p.borrow_mut(); a.spinner_tick = a.spinner_tick.wrapping_add(1); }
                 App::wasm_poll(app_p.clone()).await;
                 term_p.borrow_mut().draw(|f| app_p.borrow().render_frame(f)).ok();
             }
@@ -166,6 +173,23 @@ impl App {
     /// spawn_local — borrows are always dropped before each .await.
     #[cfg(target_arch = "wasm32")]
     async fn handle_key_wasm(
+        app: std::rc::Rc<std::cell::RefCell<Self>>,
+        key: ratzilla::event::KeyEvent,
+    ) {
+        use ratzilla::event::KeyCode;
+
+        {
+            let mut a = app.borrow_mut();
+            if a.is_processing { return; }
+            a.is_processing = true;
+        }
+
+        App::handle_key_wasm_inner(app.clone(), key).await;
+        app.borrow_mut().is_processing = false;
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn handle_key_wasm_inner(
         app: std::rc::Rc<std::cell::RefCell<Self>>,
         key: ratzilla::event::KeyEvent,
     ) {
@@ -457,7 +481,48 @@ impl App {
                 KeyCode::Char('2') if renown >= RENOWN_SEWER_DEPTHS => App::wasm_start_quest(&app, &client, AREA_SEWER_DEPTHS).await,
                 KeyCode::Char('3') if renown >= RENOWN_FUNGAL_WARRENS => App::wasm_start_quest(&app, &client, AREA_FUNGAL_WARRENS).await,
                 KeyCode::Char('4') if renown >= RENOWN_ABYSS => App::wasm_start_quest(&app, &client, AREA_ABYSS).await,
+                KeyCode::Char('5') => App::wasm_open_missions(&app, &client).await,
                 KeyCode::Esc | KeyCode::Char('q') => { app.borrow_mut().state = AppState::Tavern(TavernState::Main); }
+                _ => {}
+            }
+            return;
+        }
+
+        // ── MissionSelect ─────────────────────────────────────────────────────
+        if matches!(app.borrow().state, AppState::MissionSelect { .. }) {
+            let (selected, count) = {
+                let a = app.borrow();
+                if let AppState::MissionSelect { selected, missions } = &a.state {
+                    (*selected, missions.len())
+                } else { (0, 0) }
+            };
+            match key.code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    if let AppState::MissionSelect { selected, .. } = &mut app.borrow_mut().state {
+                        *selected = selected.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if let AppState::MissionSelect { selected, .. } = &mut app.borrow_mut().state {
+                        if *selected + 1 < count { *selected += 1; }
+                    }
+                }
+                KeyCode::Enter => {
+                    let mission_id = {
+                        let a = app.borrow();
+                        if let AppState::MissionSelect { missions, selected } = &a.state {
+                            missions.get(*selected)
+                                .filter(|m| m.state == MissionState::Ready)
+                                .map(|m| m.mission_id.clone())
+                        } else { None }
+                    };
+                    if let Some(mid) = mission_id {
+                        App::wasm_start_mission_quest(&app, &client, mid).await;
+                    }
+                }
+                KeyCode::Esc | KeyCode::Char('q') => {
+                    app.borrow_mut().state = AppState::AdventureMenu;
+                }
                 _ => {}
             }
             return;
@@ -512,6 +577,17 @@ impl App {
                         let _ = client.save_character_stats(uid, 0, 0).await;
                         let _ = client.clear_character_items(uid).await;
                     }
+                    app.borrow_mut().state = AppState::Tavern(TavernState::Main);
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // ── Victory ───────────────────────────────────────────────────────────
+        if matches!(app.borrow().state, AppState::Victory) {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc | KeyCode::Enter => {
                     app.borrow_mut().state = AppState::Tavern(TavernState::Main);
                 }
                 _ => {}
@@ -644,6 +720,35 @@ impl App {
     }
 
     #[cfg(target_arch = "wasm32")]
+    async fn wasm_open_missions(
+        app: &std::rc::Rc<std::cell::RefCell<Self>>,
+        client: &crate::client::Rattp,
+    ) {
+        let char_id = app.borrow().active_character.as_ref().map(|c| c.character.id);
+        if let Some(cid) = char_id {
+            let missions = client.get_missions(cid).await.unwrap_or_default();
+            app.borrow_mut().missions = missions.clone();
+            app.borrow_mut().state = AppState::MissionSelect { missions, selected: 0 };
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn wasm_start_mission_quest(
+        app: &std::rc::Rc<std::cell::RefCell<Self>>,
+        client: &crate::client::Rattp,
+        mission_id: String,
+    ) {
+        let uid = app.borrow().active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            let quest = client.post_new_quest_mission(uid, &mission_id).await.ok();
+            app.borrow_mut().active_quest = quest;
+            App::wasm_fetch_party_members(app, client).await;
+            app.borrow_mut().state = AppState::Main;
+            App::wasm_check_current_encounter(app, client).await;
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
     async fn wasm_fetch_party_members(
         app: &std::rc::Rc<std::cell::RefCell<Self>>,
         client: &crate::client::Rattp,
@@ -709,10 +814,21 @@ impl App {
             let _ = client.save_character_stats(user_id, coins, renown).await;
         }
         let updated = client.post_complete_quest(quest_id, user_id).await.ok();
+        let char_id = updated.as_ref().map(|c| c.character.id);
         {
             let mut a = app.borrow_mut();
             a.active_character = updated;
             a.active_quest = None;
+        }
+        // Refresh missions and check for victory (all missions complete)
+        if let Some(cid) = char_id {
+            let missions = client.get_missions(cid).await.unwrap_or_default();
+            let won = !missions.is_empty() && missions.iter().all(|m| m.state == MissionState::Complete);
+            app.borrow_mut().missions = missions;
+            if won {
+                app.borrow_mut().state = AppState::Victory;
+                return;
+            }
         }
         let party_id = app.borrow().active_party.as_ref().map(|p| p.id);
         if let Some(pid) = party_id {
@@ -978,6 +1094,19 @@ impl App {
                 }
             }
             DialogueOutcome::Escape => return,
+            DialogueOutcome::GiveClue { clue_id } => {
+                let char_id = app.borrow().active_character.as_ref().map(|c| c.character.id);
+                if let Some(cid) = char_id {
+                    if let Ok(Some(unlocked)) = client.post_clue(cid, &clue_id).await {
+                        app.borrow_mut().clue_notification = Some(format!("Clue found! \"{}\" is now available.", unlocked.title));
+                        let missions = client.get_missions(cid).await.unwrap_or_default();
+                        app.borrow_mut().missions = missions;
+                    }
+                }
+                if let Some(q) = app.borrow_mut().active_quest.as_mut() {
+                    q.current_encounter += 1;
+                }
+            }
         }
         App::wasm_regen_energy(app, client).await;
         App::wasm_sync_quest_state(app, client).await;
@@ -1404,7 +1533,38 @@ impl App {
                     KeyCode::Char('2') if renown >= RENOWN_SEWER_DEPTHS => self.start_quest(AREA_SEWER_DEPTHS).await,
                     KeyCode::Char('3') if renown >= RENOWN_FUNGAL_WARRENS => self.start_quest(AREA_FUNGAL_WARRENS).await,
                     KeyCode::Char('4') if renown >= RENOWN_ABYSS => self.start_quest(AREA_ABYSS).await,
+                    KeyCode::Char('5') => self.open_missions().await,
                     KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Main),
+                    _ => {}
+                }
+            }
+
+            AppState::MissionSelect { .. } => {
+                let (_selected, count) = if let AppState::MissionSelect { selected, missions } = &self.state {
+                    (*selected, missions.len())
+                } else { (0, 0) };
+                match key_event.code {
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if let AppState::MissionSelect { selected, .. } = &mut self.state {
+                            *selected = selected.saturating_sub(1);
+                        }
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        if let AppState::MissionSelect { selected, .. } = &mut self.state {
+                            if *selected + 1 < count { *selected += 1; }
+                        }
+                    }
+                    KeyCode::Enter => {
+                        let mission_id = if let AppState::MissionSelect { missions, selected } = &self.state {
+                            missions.get(*selected)
+                                .filter(|m| m.state == MissionState::Ready)
+                                .map(|m| m.mission_id.clone())
+                        } else { None };
+                        if let Some(mid) = mission_id {
+                            self.start_mission_quest(&mid).await;
+                        }
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::AdventureMenu,
                     _ => {}
                 }
             }
@@ -1450,6 +1610,13 @@ impl App {
                         let _ = self.client.save_character_stats(uid, 0, 0).await;
                         let _ = self.client.clear_character_items(uid).await;
                     }
+                    self.state = AppState::Tavern(TavernState::Main);
+                }
+                _ => {}
+            },
+
+            AppState::Victory => match key_event.code {
+                KeyCode::Char('q') | KeyCode::Esc | KeyCode::Enter => {
                     self.state = AppState::Tavern(TavernState::Main);
                 }
                 _ => {}
@@ -1640,6 +1807,25 @@ impl App {
         }
     }
 
+    async fn open_missions(&mut self) {
+        let char_id = self.active_character.as_ref().map(|c| c.character.id);
+        if let Some(cid) = char_id {
+            let missions = self.client.get_missions(cid).await.unwrap_or_default();
+            self.missions = missions.clone();
+            self.state = AppState::MissionSelect { missions, selected: 0 };
+        }
+    }
+
+    async fn start_mission_quest(&mut self, mission_id: &str) {
+        let uid = self.active_user.as_ref().map(|u| u.id);
+        if let Some(uid) = uid {
+            self.active_quest = self.client.post_new_quest_mission(uid, mission_id).await.ok();
+            self.fetch_party_members().await;
+            self.state = AppState::Main;
+            self.check_current_encounter().await;
+        }
+    }
+
     async fn sync_quest_state(&mut self) {
         let node = match &self.state {
             AppState::Dialogue { current_node, .. } => Some(current_node.clone()),
@@ -1761,7 +1947,17 @@ impl App {
             let _ = self.client.save_character_stats(user_id, coins, renown).await;
         }
         if let Ok(updated) = self.client.post_complete_quest(quest_id, user_id).await {
+            let cid = updated.character.id;
             self.active_character = Some(updated);
+            // Refresh missions and check for victory
+            let missions = self.client.get_missions(cid).await.unwrap_or_default();
+            let won = !missions.is_empty() && missions.iter().all(|m| m.state == MissionState::Complete);
+            self.missions = missions;
+            if won {
+                self.active_quest = None;
+                self.state = AppState::Victory;
+                return;
+            }
         }
         self.active_quest = None;
         let party_id = self.active_party.as_ref().map(|p| p.id);
@@ -1916,6 +2112,18 @@ impl App {
             }
             DialogueOutcome::Escape => {
                 return;
+            }
+            DialogueOutcome::GiveClue { clue_id } => {
+                let char_id = self.active_character.as_ref().map(|c| c.character.id);
+                if let Some(cid) = char_id {
+                    if let Ok(Some(unlocked)) = self.client.post_clue(cid, &clue_id).await {
+                        self.clue_notification = Some(format!("Clue found! \"{}\" is now available.", unlocked.title));
+                        self.missions = self.client.get_missions(cid).await.unwrap_or_default();
+                    }
+                }
+                if let Some(q) = self.active_quest.as_mut() {
+                    q.current_encounter += 1;
+                }
             }
         }
         self.regen_energy().await;
@@ -2244,7 +2452,29 @@ impl Widget for &App {
                 Clear::default().render(rect, buf);
                 self.render_target_select(rect, buf, text_style, *target_selected);
             }
+            AppState::MissionSelect { missions, selected } => {
+                self.render_mission_select(parent_layout[1], buf, text_style, missions, *selected);
+            }
+            AppState::Victory => {
+                self.render_victory(parent_layout[1], buf, text_style);
+            }
             _ => {}
+        }
+
+        if self.is_processing {
+            use ratatui::widgets::StatefulWidget;
+            use throbber_widgets_tui::{Throbber, ThrobberState, BRAILLE_SIX};
+            let throbber_area = Rect::new(
+                area.right().saturating_sub(2),
+                area.bottom().saturating_sub(1),
+                1, 1,
+            );
+            let throbber = Throbber::default()
+                .throbber_set(BRAILLE_SIX)
+                .style(Style::default().fg(ratatui::style::Color::DarkGray));
+            let mut state = ThrobberState::default();
+            state.calc_step(self.spinner_tick as i8);
+            StatefulWidget::render(throbber, throbber_area, buf, &mut state);
         }
     }
 }

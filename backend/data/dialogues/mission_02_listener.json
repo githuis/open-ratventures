@@ -1,0 +1,42 @@
+{
+  "id": "mission_02_listener",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A wiry rat sits motionless in the passage, eyes closed, hands flat on the floor. They don't startle when you approach. 'It's below the water level,' they say without opening their eyes. 'Has been for weeks. Getting louder. The old ones say it's the pipes settling. The old ones are wrong — pipes don't hum in chords.' They open one eye. 'You're going deeper. I can tell. Don't stand near the marked stones when it peaks.'",
+      "choices": [
+        {
+          "text": "Ask about the marked stones.",
+          "next": "stones",
+          "outcome": null
+        },
+        {
+          "text": "Ask what happens when it peaks.",
+          "next": "peaks",
+          "outcome": null
+        }
+      ]
+    },
+    "stones": {
+      "text": "'Round, flat, carved with a spiral. You'll find them set into the floor every so often. They resonate. I tested one with a mallet — the sound lasted four minutes and seventeen seconds. My ears rang for a day.' They close their eyes again. 'Someone placed those intentionally.'",
+      "choices": [
+        {
+          "text": "Proceed with caution.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 0, "renown": 0, "heal": 8 } }
+        }
+      ]
+    },
+    "peaks": {
+      "text": "'The water in the lower tunnels rises two inches. The creatures go still — all of them, rats, beetles, everything. For about six seconds. Then it's over and nobody talks about it.' They press a hand to the floor again. 'It's building toward something.'",
+      "choices": [
+        {
+          "text": "Prepare for whatever comes.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 8, "renown": 0, "heal": 0 } }
+        }
+      ]
+    }
+  },
+  "areas": []
+}

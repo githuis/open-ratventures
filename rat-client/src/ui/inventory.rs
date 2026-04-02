@@ -97,7 +97,7 @@ impl App {
         });
 
         let hint = if has_revive {
-            " [I] Use revive item  [Q] Give up "
+            " [V] Use revive item  [Q] Give up "
         } else {
             " [Q] Give up "
         };
@@ -128,7 +128,7 @@ impl App {
     pub(crate) fn render_target_select(&self, area: Rect, buf: &mut Buffer, text_style: Style, selected: usize) {
         let block = Block::default()
             .title(Line::from(" Revive who? ").centered())
-            .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Confirm  [Esc] Back ").centered())
+            .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Confirm  [Q] Back").centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
             .border_style(Style::default().fg(C_ACCENT))

@@ -1,0 +1,19 @@
+{
+  "id": "mission_01",
+  "title": "The Scratching",
+  "description": "Something is carving marks into the deep pipes. Find the source.",
+  "clue_id": "clue_mission_01",
+  "is_final": false,
+  "encounters": [
+    { "CombatEncounter": { "monsters": [
+      { "unit": { "id": 0, "ref_id": 0, "health": 12, "energy": 10, "max_health": 12, "max_energy": 10 }, "name": "Sewer Scout", "attack": 3, "items": [], "areas": [] }
+    ], "turn": 0 } },
+    { "NpcEncounter": "mission_01_informant" },
+    { "CombatEncounter": { "monsters": [
+      { "unit": { "id": 0, "ref_id": 0, "health": 15, "energy": 10, "max_health": 15, "max_energy": 10 }, "name": "Tunnel Guard", "attack": 4, "items": [], "areas": [] },
+      { "unit": { "id": 0, "ref_id": 0, "health": 10, "energy": 10, "max_health": 10, "max_energy": 10 }, "name": "Tunnel Watcher", "attack": 2, "items": [], "areas": [] }
+    ], "turn": 0 } },
+    { "NpcEncounter": "mission_01_source" }
+  ],
+  "completion_reward": { "coins": 15, "renown": 3 }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "mission_03",
+  "title": "The Spore Cult",
+  "description": "Something is converting the creatures of the Fungal Warrens. They act with shared purpose now.",
+  "clue_id": "clue_mission_03",
+  "is_final": false,
+  "encounters": [
+    { "CombatEncounter": { "monsters": [
+      { "unit": { "id": 0, "ref_id": 0, "health": 22, "energy": 10, "max_health": 22, "max_energy": 10 }, "name": "Spore Acolyte", "attack": 6, "items": [], "areas": [] },
+      { "unit": { "id": 0, "ref_id": 0, "health": 14, "energy": 10, "max_health": 14, "max_energy": 10 }, "name": "Spore Acolyte", "attack": 4, "items": [], "areas": [] }
+    ], "turn": 0 } },
+    { "NpcEncounter": "mission_03_witness" },
+    { "CombatEncounter": { "monsters": [
+      { "unit": { "id": 0, "ref_id": 0, "health": 28, "energy": 10, "max_health": 28, "max_energy": 10 }, "name": "Cult Herald", "attack": 7, "items": [], "areas": [] }
+    ], "turn": 0 } },
+    { "NpcEncounter": "mission_03_altar" }
+  ],
+  "completion_reward": { "coins": 25, "renown": 3 }
+}

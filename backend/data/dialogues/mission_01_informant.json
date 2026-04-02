@@ -1,0 +1,42 @@
+{
+  "id": "mission_01_informant",
+  "start": "encounter",
+  "nodes": {
+    "encounter": {
+      "text": "A rat crouches in an alcove, pressing their ear against the pipe wall. They hold a finger up for silence. After a long moment, they pull away. 'There it is again. Scratching. Regular. Too regular to be rats.' They look at you. 'Someone — or something — is writing on the pipes down here. I've followed it twice. Never found the end of the marks.'",
+      "choices": [
+        {
+          "text": "Ask where the marks lead.",
+          "next": "direction",
+          "outcome": null
+        },
+        {
+          "text": "Listen at the pipe yourself.",
+          "next": "listen",
+          "outcome": null
+        }
+      ]
+    },
+    "direction": {
+      "text": "'Always deeper. The marks get denser the further down you go. I turned back at the third junction — there were things moving in the water by then.' They press something into your hand. A coin, worn smooth, with a symbol scratched into it matching the pipe marks. 'Found it near the source. You'll want to know what that means before this is over.'",
+      "choices": [
+        {
+          "text": "Take the coin and press on.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 0, "renown": 1, "heal": 0 } }
+        }
+      ]
+    },
+    "listen": {
+      "text": "You press your ear to the pipe. Cold metal. Then — faint, rhythmic, like something writing in a language you almost recognise. It stops. Starts again. The rat nods grimly. 'You hear it. Good. Most don't stay long enough.'",
+      "choices": [
+        {
+          "text": "Continue deeper.",
+          "next": null,
+          "outcome": { "Reward": { "coins": 5, "renown": 0, "heal": 5 } }
+        }
+      ]
+    }
+  },
+  "areas": []
+}
