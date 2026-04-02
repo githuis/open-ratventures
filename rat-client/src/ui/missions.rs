@@ -22,7 +22,15 @@ impl App {
     ) {
         let block = Block::default()
             .title(Line::from(" Follow Clues ".bold()))
-            .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Begin  [Q] Back ").centered())
+            .title_bottom(Line::from(vec![
+                " ".into(),
+                Span::styled("[↑/↓]", text_style),
+                " Navigate  ".into(),
+                Span::styled("[Enter]", text_style),
+                " Begin  ".into(),
+                Span::styled("[Q]", text_style),
+                " Back ".into(),
+            ]).centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
             .border_style(Style::default().fg(self.c_accent()))
@@ -76,7 +84,11 @@ impl App {
     pub(crate) fn render_victory(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let block = Block::default()
             .title(Line::from(" Victory! ".bold()))
-            .title_bottom(Line::from(" [Q] Return to Menu ").centered())
+            .title_bottom(Line::from(vec![
+                " ".into(),
+                Span::styled("[Q]", text_style),
+                " Return to Menu ".into(),
+            ]).centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
             .border_style(Style::default().fg(self.c_accent()))

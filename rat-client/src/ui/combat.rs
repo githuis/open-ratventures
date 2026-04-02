@@ -27,7 +27,8 @@ impl App {
             .title(Line::from(" Combat ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(self.c_accent()));
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
 
         let mut lines = vec![
             Line::from(vec![
@@ -62,11 +63,15 @@ impl App {
             ]));
         }
         lines.push(Line::from(vec![
-            " [F] Attack — ".into(),
+            " ".into(),
+            Span::styled("[F]", text_style),
+            " Attack — ".into(),
             Span::styled("5 dmg to first living enemy", text_style),
         ]));
         lines.push(Line::from(vec![
-            " [V] View inventory".into(),
+            " ".into(),
+            Span::styled("[V]", text_style),
+            " View inventory".into(),
         ]));
 
         if !self.inventory.is_empty() {
@@ -80,7 +85,9 @@ impl App {
                     ItemEffect::MaxHpUp(n) => format!("+{} max hp", n),
                 };
                 lines.push(Line::from(vec![
-                    format!(" [{}] {} ({}) — ", i + 1, inv.item.name, if inv.charges_remaining == -1 { "∞".to_string() } else { format!("x{}", inv.charges_remaining) }).into(),
+                    " ".into(),
+                    Span::styled(format!("[{}]", i + 1), text_style),
+                    format!(" {} ({}) — ", inv.item.name, if inv.charges_remaining == -1 { "∞".to_string() } else { format!("x{}", inv.charges_remaining) }).into(),
                     Span::styled(effect_str, text_style),
                 ]));
             }
@@ -88,7 +95,7 @@ impl App {
 
         Paragraph::new(lines)
             .block(block)
-            .bg(self.c_bg())
+            .bg(self.c_panel())
             .render(area, buf);
     }
 }

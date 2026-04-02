@@ -15,7 +15,15 @@ impl App {
     pub(crate) fn render_inventory_popup(&self, area: Rect, buf: &mut Buffer, text_style: Style, scroll: usize, selected: usize, in_combat: bool) {
         let block = Block::default()
             .title(Line::from(" Inventory ").centered())
-            .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Use  [V/Esc] Close ").centered())
+            .title_bottom(Line::from(vec![
+                " ".into(),
+                Span::styled("[↑/↓]", text_style),
+                " Navigate  ".into(),
+                Span::styled("[Enter]", text_style),
+                " Use  ".into(),
+                Span::styled("[V/Esc]", text_style),
+                " Close ".into(),
+            ]).centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
             .border_style(Style::default().fg(self.c_accent()))
@@ -91,20 +99,58 @@ impl App {
             .render(inner, buf);
     }
 
-    pub(crate) fn render_game_over(&self, area: Rect, buf: &mut Buffer, _text_style: Style) {
+    pub(crate) fn render_encounter_cleared(&self, area: Rect, buf: &mut Buffer, text_style: Style, from_combat: bool) {
+        let (title, body) = if from_combat {
+            (" Enemies defeated ", "The way ahead is clear.")
+        } else {
+            (" Conversation over ", "You part ways and move on.")
+        };
+
+        let block = Block::default()
+            .title(Line::from(title).centered())
+            .title_bottom(Line::from(vec![
+                " ".into(),
+                Span::styled("[G]", text_style),
+                " Go forward ".into(),
+            ]).centered())
+            .borders(Borders::ALL)
+            .border_set(border::THICK)
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
+
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        Paragraph::new(Span::styled(body, text_style))
+            .wrap(Wrap { trim: false })
+            .bg(self.c_panel())
+            .render(inner, buf);
+    }
+
+    pub(crate) fn render_game_over(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let has_revive = self.inventory.iter().any(|i| {
             matches!(i.item.effect, ItemEffect::FullHeal) && i.charges_remaining != 0
         });
 
-        let hint = if has_revive {
-            " [V] Use revive item  [Q] Give up "
+        let hint_line = if has_revive {
+            Line::from(vec![
+                " ".into(),
+                Span::styled("[V]", text_style),
+                " Use revive item  ".into(),
+                Span::styled("[Q]", text_style),
+                " Give up ".into(),
+            ])
         } else {
-            " [Q] Give up "
+            Line::from(vec![
+                " ".into(),
+                Span::styled("[Q]", text_style),
+                " Give up ".into(),
+            ])
         };
 
         let block = Block::default()
             .title(Line::from(" Party wiped! ").centered())
-            .title_bottom(Line::from(hint).centered())
+            .title_bottom(hint_line.centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
             .border_style(Style::default().fg(self.c_accent()))
@@ -128,7 +174,15 @@ impl App {
     pub(crate) fn render_target_select(&self, area: Rect, buf: &mut Buffer, text_style: Style, selected: usize) {
         let block = Block::default()
             .title(Line::from(" Revive who? ").centered())
-            .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Confirm  [Q] Back").centered())
+            .title_bottom(Line::from(vec![
+                " ".into(),
+                Span::styled("[↑/↓]", text_style),
+                " Navigate  ".into(),
+                Span::styled("[Enter]", text_style),
+                " Confirm  ".into(),
+                Span::styled("[Q]", text_style),
+                " Back".into(),
+            ]).centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
             .border_style(Style::default().fg(self.c_accent()))
