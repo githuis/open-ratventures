@@ -12,6 +12,7 @@ pub fn routes() -> Router {
         .route("/character", post(create_character))
         .route("/character/{user_id}", get(get_character))
         .route("/character/{user_id}/unit", put(update_unit))
+        .route("/character/{user_id}/name", put(rename_character))
         .route("/character/{user_id}/stats", put(save_stats))
         .route("/character/{user_id}/items", get(get_items).post(give_item).delete(clear_items))
         .route("/character/{user_id}/items/{item_id}", delete(consume_item))
@@ -68,6 +69,17 @@ async fn list_shop(
     Extension(db): Extension<DbConnection>,
 ) -> Result<Json<Vec<ShopItem>>, StatusCode> {
     db.list_shop_items().await.map(Json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn rename_character(
+    Extension(db): Extension<DbConnection>,
+    Path(user_id): Path<i32>,
+    name: String,
+) -> StatusCode {
+    match db.rename_character(user_id, name).await {
+        Ok(_) => StatusCode::NO_CONTENT,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
 }
 
 async fn save_stats(

@@ -10,7 +10,7 @@ use ratback_types::data::ItemEffect;
 use ratback_types::quest_data::Encounter;
 
 use crate::app::App;
-use crate::ui::{C_ALERT, C_ACCENT, C_BG};
+
 
 impl App {
     pub(crate) fn render_combat(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -27,7 +27,7 @@ impl App {
             .title(Line::from(" Combat ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
+            .border_style(Style::default().fg(self.c_accent()));
 
         let mut lines = vec![
             Line::from(vec![
@@ -57,7 +57,7 @@ impl App {
         if let Some((dmg, target)) = &self.last_combat_damage {
             lines.push(Line::from(vec![
                 " Monsters dealt ".into(),
-                Span::styled(dmg.to_string(), Style::default().fg(C_ALERT).add_modifier(Modifier::BOLD)),
+                Span::styled(dmg.to_string(), Style::default().fg(self.c_alert()).add_modifier(Modifier::BOLD)),
                 format!(" damage to {}!", target).into(),
             ]));
         }
@@ -88,7 +88,7 @@ impl App {
 
         Paragraph::new(lines)
             .block(block)
-            .bg(C_BG)
+            .bg(self.c_bg())
             .render(area, buf);
     }
 }

@@ -831,6 +831,15 @@ impl DbConnection {
         Ok(())
     }
 
+    pub async fn rename_character(&self, user_id: i32, name: String) -> Result<()> {
+        sqlx::query("UPDATE characters SET name = $1 WHERE user_id = $2")
+            .bind(name)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn get_character_by_user_id(&self, user_id: i32) -> Result<CharacterWrapper> {
         let character =
             sqlx::query_as::<_, Character>("SELECT * FROM characters WHERE user_id = $1")

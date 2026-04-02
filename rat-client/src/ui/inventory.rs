@@ -9,7 +9,7 @@ use ratatui::{
 use ratback_types::data::ItemEffect;
 
 use crate::app::App;
-use crate::ui::{C_ACCENT, C_PANEL};
+
 
 impl App {
     pub(crate) fn render_inventory_popup(&self, area: Rect, buf: &mut Buffer, text_style: Style, scroll: usize, selected: usize, in_combat: bool) {
@@ -18,8 +18,8 @@ impl App {
             .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Use  [V/Esc] Close ").centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT))
-            .bg(C_PANEL);
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
 
         let inner = block.inner(area);
         block.render(area, buf);
@@ -28,13 +28,13 @@ impl App {
             Paragraph::new(Line::from(vec![
                 Span::styled(" Your pack is empty.", text_style),
             ]))
-            .bg(C_PANEL)
+            .bg(self.c_panel())
             .render(inner, buf);
             return;
         }
 
-        let dim = Style::default().fg(C_ACCENT);
-        let selected_style = Style::default().bg(C_ACCENT).fg(ratatui::style::Color::White);
+        let dim = Style::default().fg(self.c_accent());
+        let selected_style = Style::default().bg(self.c_accent()).fg(ratatui::style::Color::White);
 
         const PAGE: usize = 5;
         let mut lines: Vec<Line> = vec![Line::from("")];
@@ -87,7 +87,7 @@ impl App {
 
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
-            .bg(C_PANEL)
+            .bg(self.c_panel())
             .render(inner, buf);
     }
 
@@ -107,8 +107,8 @@ impl App {
             .title_bottom(Line::from(hint).centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT))
-            .bg(C_PANEL);
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
 
         let inner = block.inner(area);
         block.render(area, buf);
@@ -121,7 +121,7 @@ impl App {
 
         Paragraph::new(body)
             .wrap(Wrap { trim: false })
-            .bg(C_PANEL)
+            .bg(self.c_panel())
             .render(inner, buf);
     }
 
@@ -131,13 +131,13 @@ impl App {
             .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Confirm  [Q] Back").centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT))
-            .bg(C_PANEL);
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
 
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let selected_style = Style::default().bg(C_ACCENT).fg(ratatui::style::Color::White);
+        let selected_style = Style::default().bg(self.c_accent()).fg(ratatui::style::Color::White);
         let targets = self.dead_targets();
 
         let mut lines: Vec<Line> = vec![Line::from("")];
@@ -152,7 +152,7 @@ impl App {
         }
 
         Paragraph::new(lines)
-            .bg(C_PANEL)
+            .bg(self.c_panel())
             .render(inner, buf);
     }
 }

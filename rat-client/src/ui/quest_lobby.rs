@@ -9,7 +9,7 @@ use ratatui::{
 use ratback_types::quest_data::PartySummary;
 
 use crate::app::App;
-use crate::ui::{C_ACCENT, C_PANEL};
+
 
 impl App {
     pub(crate) fn render_party_lobby(&self, area: Rect, buf: &mut Buffer, text_style: Style, parties: &[PartySummary]) {
@@ -17,7 +17,7 @@ impl App {
             .title(Line::from(" Find a Party ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
+            .border_style(Style::default().fg(self.c_accent()));
 
         let mut lines = vec![Line::from(""), Line::from(" Open parties:".bold()), Line::from("")];
 
@@ -48,7 +48,7 @@ impl App {
 
         Paragraph::new(lines)
             .block(block)
-            .bg(C_PANEL)
+            .bg(self.c_panel())
             .render(area, buf);
     }
 }

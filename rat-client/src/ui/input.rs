@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::ui::{C_ACCENT, C_PANEL};
+
 
 impl App {
     pub(crate) fn render_input(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -18,7 +18,7 @@ impl App {
             ))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
+            .border_style(Style::default().fg(self.c_accent()));
 
         let current_text = match &self.text_input {
             Some(x) => Line::from(vec![Span::styled(x, text_style)]),
@@ -28,7 +28,7 @@ impl App {
 
         Paragraph::new(text)
             .block(block)
-            .bg(C_PANEL)
+            .bg(self.c_panel())
             .render(area, buf);
     }
 }

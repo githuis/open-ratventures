@@ -9,7 +9,7 @@ use ratatui::{
 use ratback_types::quest_data::{MissionState, MissionStatus};
 
 use crate::app::App;
-use crate::ui::{C_ACCENT, C_BG, C_PANEL, C_ALERT};
+
 
 impl App {
     pub(crate) fn render_mission_select(
@@ -25,13 +25,13 @@ impl App {
             .title_bottom(Line::from(" [↑/↓] Navigate  [Enter] Begin  [Q] Back ").centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT))
-            .bg(C_PANEL);
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
 
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let selected_style = Style::default().bg(C_ACCENT).fg(ratatui::style::Color::White).add_modifier(Modifier::BOLD);
+        let selected_style = Style::default().bg(self.c_accent()).fg(ratatui::style::Color::White).add_modifier(Modifier::BOLD);
         let dim = Style::default().fg(ratatui::style::Color::DarkGray);
 
         let mut lines = vec![Line::from(""), Line::from(" Missions:".bold()), Line::from("")];
@@ -44,8 +44,8 @@ impl App {
                 let cursor = if i == selected { "▶ " } else { "  " };
                 let (state_label, style) = match m.state {
                     MissionState::Locked => ("[locked]", dim),
-                    MissionState::Ready => ("[ready]", Style::default().fg(C_ACCENT)),
-                    MissionState::InProgress => ("[in progress]", Style::default().fg(C_ALERT)),
+                    MissionState::Ready => ("[ready]", Style::default().fg(self.c_accent())),
+                    MissionState::InProgress => ("[in progress]", Style::default().fg(self.c_alert())),
                     MissionState::Complete => ("[complete]", text_style),
                 };
                 let row_style = if i == selected { selected_style } else { Style::default() };
@@ -69,7 +69,7 @@ impl App {
 
         Paragraph::new(lines)
             .wrap(ratatui::widgets::Wrap { trim: false })
-            .bg(C_BG)
+            .bg(self.c_bg())
             .render(inner, buf);
     }
 
@@ -79,8 +79,8 @@ impl App {
             .title_bottom(Line::from(" [Q] Return to Menu ").centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT))
-            .bg(C_PANEL);
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
 
         let inner = block.inner(area);
         block.render(area, buf);
@@ -99,7 +99,7 @@ impl App {
 
         Paragraph::new(lines)
             .wrap(ratatui::widgets::Wrap { trim: false })
-            .bg(C_BG)
+            .bg(self.c_bg())
             .render(inner, buf);
     }
 }

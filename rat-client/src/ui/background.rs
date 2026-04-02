@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::ui::C_BG;
+
 
 impl App {
     pub(crate) fn render_main(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -27,7 +27,7 @@ impl App {
         let block = Block::default()
             .title(title.centered())
             //.title_bottom(instructions.centered())
-            .bg(C_BG);
+            .bg(self.c_bg());
 
         block.render(area, buf);
     }

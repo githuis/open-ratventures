@@ -61,6 +61,11 @@ impl Rattp {
         Ok(serde_json::from_str(&response)?)
     }
 
+    pub async fn put_rename_character(&self, user_id: i32, name: String) -> Result<(), Box<dyn Error>> {
+        self.http.put(self.destination(&format!("character/{user_id}/name"))).body(name).send().await?;
+        Ok(())
+    }
+
     pub async fn update_character_unit(&self, user_id: i32, unit: &ratback_types::data::Unit) -> Result<(), Box<dyn Error>> {
         self.http.put(self.destination(&format!("character/{user_id}/unit"))).json(unit).send().await?;
         Ok(())

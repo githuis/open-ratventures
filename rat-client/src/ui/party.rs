@@ -9,7 +9,7 @@ use ratatui::{
 use ratback_types::data::CharacterWrapper;
 
 use crate::app::App;
-use crate::ui::{C_ACCENT, C_ALERT, C_PANEL};
+
 
 impl App {
     pub(crate) fn render_party(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
@@ -17,14 +17,14 @@ impl App {
             .title(Line::from(" Party ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
+            .border_style(Style::default().fg(self.c_accent()));
 
         let my_char_id = self.active_character.as_ref().map(|c| c.character.id);
         let characters: Vec<&CharacterWrapper> = self.party_members.iter()
             .filter(|c| Some(c.character.id) != my_char_id)
             .collect();
 
-        let bg = C_PANEL;
+        let bg = self.c_panel();
 
         if characters.is_empty() {
             let msg = if self.active_party.is_some() || self.active_quest.is_some() {
@@ -56,7 +56,7 @@ impl App {
                 .title(Line::from(format!(" {} ", c.character.name)))
                 .borders(Borders::ALL)
                 .border_set(border::PLAIN)
-                .border_style(Style::default().fg(C_ACCENT));
+                .border_style(Style::default().fg(self.c_accent()));
 
             let lines = vec![
                 Line::from(vec![
@@ -77,7 +77,7 @@ impl App {
 
             Paragraph::new(lines)
                 .block(card_block)
-                .bg(C_PANEL)
+                .bg(self.c_panel())
                 .render(card_area, buf);
         }
     }
@@ -89,14 +89,14 @@ impl App {
             .title(Line::from(" Party ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
+            .border_style(Style::default().fg(self.c_accent()));
 
         let in_party = self.active_party.is_some();
         let mut lines = vec![
             Line::from(""),
             Line::from(Span::styled(
                 if in_party { " You are in a party" } else { " You are not in a party" },
-                Style::default().fg(if in_party { C_ACCENT } else { C_ALERT }),
+                Style::default().fg(if in_party { self.c_accent() } else { self.c_alert() }),
             )),
             Line::from(""),
             Line::from(" Members:".bold()),
@@ -106,7 +106,7 @@ impl App {
         if self.party_members.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  Waiting for others to join...",
-                Style::default().fg(C_ALERT),
+                Style::default().fg(self.c_alert()),
             )));
         } else {
             for c in &self.party_members {
@@ -122,7 +122,7 @@ impl App {
                 )));
                 lines.push(Line::from(Span::styled(
                     format!("    HP {}/{}", c.unit.health, c.unit.max_health),
-                    Style::default().fg(C_ACCENT),
+                    Style::default().fg(self.c_accent()),
                 )));
             }
         }
@@ -130,7 +130,7 @@ impl App {
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
             " Return to the tavern to start an adventure.",
-            Style::default().fg(C_ALERT),
+            Style::default().fg(self.c_alert()),
         )));
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
@@ -144,7 +144,7 @@ impl App {
 
         Paragraph::new(lines)
             .block(block)
-            .bg(C_PANEL)
+            .bg(self.c_panel())
             .render(area, buf);
     }
 }

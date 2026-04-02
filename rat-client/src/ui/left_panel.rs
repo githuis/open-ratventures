@@ -9,19 +9,19 @@ use ratatui::{
 use ratback_types::{data::MAX_ENCOUNTER_LENGTH, quest_data::Encounter};
 
 use crate::app::App;
-use crate::ui::{C_TEXT, C_ACCENT, C_PANEL};
+
 
 impl App {
     pub(crate) fn render_left_panel(&self, area: Rect, buf: &mut Buffer) {
         let text_style = Style::default()
-            .fg(C_TEXT)
+            .fg(self.c_text())
             .add_modifier(Modifier::BOLD);
 
         let block = Block::default()
             .title(Line::from(" Character ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
+            .border_style(Style::default().fg(self.c_accent()));
 
         let mut lines: Vec<Line> = Vec::new();
 
@@ -81,14 +81,14 @@ impl App {
             let total = MAX_ENCOUNTER_LENGTH;
             let filled = (quest.current_encounter as usize + 1).min(total);
             let bar = format!("▕{}{}▏", "█".repeat(filled), "░".repeat(total - filled));
-            lines.push(Line::from(Span::styled(bar, Style::default().fg(C_ACCENT))));
+            lines.push(Line::from(Span::styled(bar, Style::default().fg(self.c_accent()))));
         }
 
 
 
         Paragraph::new(lines)
             .block(block)
-            .bg(C_PANEL)
+            .bg(self.c_panel())
             .render(area, buf);
     }
 }

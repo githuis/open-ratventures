@@ -7,11 +7,11 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::ui::{C_ACCENT, C_BG};
+
 
 impl App {
     pub(crate) fn render_welcome(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
-        Block::default().bg(C_BG).render(area, buf);
+        Block::default().bg(self.c_bg()).render(area, buf);
 
         let inner = Layout::default()
             .direction(Direction::Vertical)
@@ -38,9 +38,9 @@ impl App {
         let lines = vec![
             Line::from(""),
             Line::from(Span::styled("O P E N   R A T V E N T U R E S", text_style)),
-            Line::from(Span::styled(version_line, Style::default().fg(C_ACCENT))),
+            Line::from(Span::styled(version_line, Style::default().fg(self.c_accent()))),
             Line::from(""),
-            Line::from(Span::styled("────────────────────────────────", Style::default().fg(C_ACCENT))),
+            Line::from(Span::styled("────────────────────────────────", Style::default().fg(self.c_accent()))),
             Line::from(""),
             Line::from("  Deep beneath the cobblestones, something stirs."),
             Line::from("  Rats with ambition. Dungeons with loot. Cheese"),
@@ -49,7 +49,7 @@ impl App {
             Line::from("  Gather your party. Choose your words carefully."),
             Line::from("  Not all battles are won with a blade."),
             Line::from(""),
-            Line::from(Span::styled("────────────────────────────────", Style::default().fg(C_ACCENT))),
+            Line::from(Span::styled("────────────────────────────────", Style::default().fg(self.c_accent()))),
             Line::from(""),
             Line::from(vec![
                 "  ".into(),

@@ -8,22 +8,22 @@ use ratatui::{
 };
 
 use ratback_types::{RENOWN_SEWER_DEPTHS, RENOWN_FUNGAL_WARRENS, RENOWN_ABYSS};
-use crate::app::{App, TavernState};
-use crate::ui::{C_ALERT, C_ACCENT, C_PANEL};
+use crate::app::{App, AppState, TavernState, Reason};
+
 
 impl App {
     pub(crate) fn render_adventure_menu(&self, area: Rect, buf: &mut Buffer, text_style: Style) {
         let renown = self.active_character.as_ref().map(|c| c.character.renown).unwrap_or(0);
-        let dim = Style::default().fg(C_ACCENT);
+        let dim = Style::default().fg(self.c_accent());
 
         let block = Block::default()
             .title(Line::from(" Adventure — Choose a Destination ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT))
-            .bg(C_PANEL);
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
 
-        let zone = |key: &'static str, label: &'static str, note: Option<&'static str>, enabled: bool| -> Line<'static> {
+        let zone = |key: &'static str, label: &'static str, note: Option<&'static str>, enabled: bool, required_renown: u32| -> Line<'static> {
             if enabled {
                 let mut spans = vec![
                     "  ".into(),
@@ -35,7 +35,7 @@ impl App {
                 }
                 Line::from(spans)
             } else {
-                Line::from(Span::styled(format!("  {key}  {label}"), dim))
+                Line::from(Span::styled(format!("  {key}  {label}  — requires {required_renown} renown"), dim))
             }
         };
 
@@ -46,10 +46,10 @@ impl App {
             Line::from(""),
             Line::from(Span::styled("  Where do you venture?", text_style)),
             Line::from(""),
-            zone("[1]", "Top-level Sewers", Some("common rats and ruffians"), true),
-            zone("[2]", "Sewer Depths", Some("darker, more dangerous"), renown >= RENOWN_SEWER_DEPTHS),
-            zone("[3]", "The Fungal Warrens", Some("bioluminescent caverns below the sewers"), renown >= RENOWN_FUNGAL_WARRENS),
-            zone("[4]", abyss_label, abyss_note, renown >= RENOWN_ABYSS),
+            zone("[1]", "Top-level Sewers", Some("common rats and ruffians"), true, 0),
+            zone("[2]", "Sewer Depths", Some("darker, more dangerous"), renown >= RENOWN_SEWER_DEPTHS, RENOWN_SEWER_DEPTHS),
+            zone("[3]", "The Fungal Warrens", Some("bioluminescent caverns below the sewers"), renown >= RENOWN_FUNGAL_WARRENS, RENOWN_FUNGAL_WARRENS),
+            zone("[4]", abyss_label, abyss_note, renown >= RENOWN_ABYSS, RENOWN_ABYSS),
             Line::from(Span::styled("  [5]  Follow Clues  — (coming soon)", dim)),
             Line::from(""),
             Line::from(vec![
@@ -69,7 +69,7 @@ impl App {
         match sub {
             TavernState::Main => {
                 let has_char = self.active_character.is_some();
-                let dim = Style::default().fg(C_ACCENT);
+                let dim = Style::default().fg(self.c_accent());
 
                 let opt = |key: &'static str, label: &'static str, enabled: bool| -> Line<'static> {
                     if enabled {
@@ -90,8 +90,8 @@ impl App {
                     .title(Line::from(" The Rusty Rat Tavern ".bold()))
                     .borders(Borders::ALL)
                     .border_set(border::THICK)
-                    .border_style(Style::default().fg(C_ACCENT))
-                    .bg(C_PANEL);
+                    .border_style(Style::default().fg(self.c_accent()))
+                    .bg(self.c_panel());
 
                 let lines = vec![
                     Line::from(""),
@@ -112,7 +112,7 @@ impl App {
                     opt("[A]", "Adventure — seek out a quest", has_char),
                     opt("[S]", "Shop — browse goods from the barkeep", has_char),
                     opt("[G]", "Group — group up with a new or existing adventuring party", has_char),
-                    opt("[O]", "Options — change character", has_char),
+                    opt("[O]", "Options", has_char),
                     Line::from(vec![
                         "  ".into(),
                         Span::styled("[Q]", text_style),
@@ -128,15 +128,15 @@ impl App {
             TavernState::Shop { items, selected, scroll } => {
                 const PAGE: usize = 5;
                 let coins = self.active_character.as_ref().map(|c| c.character.coins).unwrap_or(0);
-                let dim = Style::default().fg(C_ACCENT);
-                let selected_bg = Style::default().bg(C_ACCENT).fg(ratatui::style::Color::White);
+                let dim = Style::default().fg(self.c_accent());
+                let selected_bg = Style::default().bg(self.c_accent()).fg(ratatui::style::Color::White);
 
                 let block = Block::default()
                     .title(Line::from(" Barkeep's Wares ".bold()))
                     .borders(Borders::ALL)
                     .border_set(border::THICK)
-                    .border_style(Style::default().fg(C_ACCENT))
-                    .bg(C_PANEL);
+                    .border_style(Style::default().fg(self.c_accent()))
+                    .bg(self.c_panel());
 
                 let mut lines = vec![
                     Line::from(""),
@@ -154,7 +154,7 @@ impl App {
                         let style = if is_selected { selected_bg } else { text_style };
                         lines.push(Line::from(vec![
                             Span::styled(format!("{}{}", cursor, entry.item.name), style),
-                            Span::styled(format!("  {} gold", entry.cost), Style::default().fg(C_ALERT)),
+                            Span::styled(format!("  {} gold", entry.cost), Style::default().fg(self.c_alert())),
                         ]));
                     } else {
                         lines.push(Line::from(Span::styled(
@@ -188,6 +188,110 @@ impl App {
                     .wrap(Wrap { trim: false })
                     .render(area, buf);
             }
+            TavernState::Options => {
+                let char_name = self.active_character.as_ref().map(|c| c.character.name.as_str()).unwrap_or("—");
+                let is_renaming = matches!(self.state, AppState::TextInput(Reason::Rename));
+
+                let block = Block::default()
+                    .title(Line::from(" Options ".bold()))
+                    .borders(Borders::ALL)
+                    .border_set(border::THICK)
+                    .border_style(Style::default().fg(self.c_accent()))
+                    .bg(self.c_panel());
+
+                let mut lines = vec![
+                    Line::from(""),
+                    Line::from(Span::styled(format!("  Character: {}", char_name), text_style)),
+                    Line::from(""),
+                    Line::from(vec![
+                        "  ".into(),
+                        Span::styled("[R]", text_style),
+                        "  Rename character".into(),
+                    ]),
+                    Line::from(vec![
+                        "  ".into(),
+                        Span::styled("[C]", text_style),
+                        "  Change account".into(),
+                    ]),
+                    Line::from(vec![
+                        "  ".into(),
+                        Span::styled("[P]", text_style),
+                        format!("  Palette — {}", crate::ui::PALETTES[self.palette_index].name).into(),
+                    ]),
+                    Line::from(""),
+                    Line::from(vec![
+                        "  ".into(),
+                        Span::styled("[Q]", text_style),
+                        "  Back".into(),
+                    ]),
+                ];
+
+                if is_renaming {
+                    let input = self.text_input.as_deref().unwrap_or("");
+                    lines.push(Line::from(""));
+                    lines.push(Line::from(vec![
+                        "  New name: ".into(),
+                        Span::styled(format!("{}_", input), text_style),
+                    ]));
+                }
+
+                Paragraph::new(lines)
+                    .block(block)
+                    .wrap(Wrap { trim: false })
+                    .render(area, buf);
+            }
+            TavernState::PaletteSelect { selected } => {
+                self.render_palette_select(area, buf, text_style, *selected);
+            }
         }
+    }
+
+    pub(crate) fn render_palette_select(&self, area: Rect, buf: &mut Buffer, text_style: Style, selected: usize) {
+        use ratatui::text::Span;
+        let dim = Style::default().fg(self.c_accent());
+
+        let block = ratatui::widgets::Block::default()
+            .title(ratatui::text::Line::from(" Choose Palette ".bold()))
+            .borders(Borders::ALL)
+            .border_set(border::THICK)
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
+
+        let mut lines = vec![
+            ratatui::text::Line::from(""),
+            ratatui::text::Line::from(Span::styled("  Palettes from lospec.com/palette-list", dim)),
+            ratatui::text::Line::from(""),
+        ];
+
+        for (i, pal) in crate::ui::PALETTES.iter().enumerate() {
+            let cursor = if i == selected { "▶ " } else { "  " };
+            let is_current = i == self.palette_index;
+            let swatch = ratatui::text::Line::from(vec![
+                Span::raw(format!("{}", cursor)),
+                Span::styled("█", Style::default().fg(pal.text)),
+                Span::styled("█", Style::default().fg(pal.alert)),
+                Span::styled("█", Style::default().fg(pal.accent)),
+                Span::styled("█", Style::default().fg(pal.panel)),
+                Span::styled("█", Style::default().fg(pal.bg)),
+                Span::raw(format!("  {}{}", pal.name, if is_current { "  ←" } else { "" })),
+            ]);
+            lines.push(swatch);
+        }
+
+        lines.push(ratatui::text::Line::from(""));
+        lines.push(ratatui::text::Line::from(vec![
+            "  ".into(),
+            Span::styled("[↑/↓]", text_style),
+            " Navigate  ".into(),
+            Span::styled("[Enter]", text_style),
+            " Apply  ".into(),
+            Span::styled("[Q]", text_style),
+            " Back".into(),
+        ]));
+
+        Paragraph::new(lines)
+            .block(block)
+            .wrap(Wrap { trim: false })
+            .render(area, buf);
     }
 }

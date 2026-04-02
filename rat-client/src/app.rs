@@ -20,7 +20,7 @@ use ratback_types::{
 
 use crate::client::Rattp;
 use crate::tui;
-use crate::ui::C_TEXT;
+
 
 #[derive(Debug, Default)]
 pub struct App {
@@ -40,6 +40,7 @@ pub struct App {
     pub clue_notification: Option<String>,
     pub is_processing: bool,
     pub spinner_tick: u8,
+    pub palette_index: usize,
 }
 
 #[derive(Debug, Default)]
@@ -47,6 +48,8 @@ pub enum TavernState {
     #[default]
     Main,
     Shop { items: Vec<ratback_types::data::ShopItem>, selected: usize, scroll: usize },
+    Options,
+    PaletteSelect { selected: usize },
 }
 
 #[derive(Debug)]
@@ -74,11 +77,12 @@ impl Default for AppState {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum Reason {
     #[default]
     Register,
     CreateCharacter,
+    Rename,
 }
 
 impl App {
@@ -307,28 +311,47 @@ impl App {
 
         // ── TextInput ─────────────────────────────────────────────────────────
         if matches!(app.borrow().state, AppState::TextInput(_)) {
+            let reason = if let AppState::TextInput(r) = app.borrow().state { r } else { unreachable!() };
             match key.code {
-                KeyCode::Enter => {
-                    let username = {
-                        let mut a = app.borrow_mut();
-                        a.toggle_text_input(None);
-                        a.get_and_clear_text_input()
-                    };
-                    if let Some(name) = username {
-                        if let Ok(user) = client.post_register_user(name).await {
-                            let uid = user.id;
-                            app.borrow_mut().active_user = Some(user);
-                            let character = client.post_new_character(&uid).await.ok();
-                            let inventory = client.get_character_items(uid).await.unwrap_or_default();
-                            let party = client.get_party_for_user(uid).await.ok();
+                KeyCode::Enter => match reason {
+                    Reason::Rename => {
+                        let name = {
                             let mut a = app.borrow_mut();
-                            a.active_character = character;
-                            a.inventory = inventory;
-                            a.active_party = party;
                             a.state = AppState::Tavern(TavernState::Main);
+                            a.get_and_clear_text_input()
+                        };
+                        if let Some(name) = name {
+                            let uid = app.borrow().active_user.as_ref().map(|u| u.id);
+                            if let Some(uid) = uid {
+                                client.put_rename_character(uid, name.clone()).await.ok();
+                                if let Some(ref mut cw) = app.borrow_mut().active_character {
+                                    cw.character.name = name;
+                                }
+                            }
                         }
                     }
-                }
+                    _ => {
+                        let username = {
+                            let mut a = app.borrow_mut();
+                            a.toggle_text_input(None);
+                            a.get_and_clear_text_input()
+                        };
+                        if let Some(name) = username {
+                            if let Ok(user) = client.post_register_user(name).await {
+                                let uid = user.id;
+                                app.borrow_mut().active_user = Some(user);
+                                let character = client.post_new_character(&uid).await.ok();
+                                let inventory = client.get_character_items(uid).await.unwrap_or_default();
+                                let party = client.get_party_for_user(uid).await.ok();
+                                let mut a = app.borrow_mut();
+                                a.active_character = character;
+                                a.inventory = inventory;
+                                a.active_party = party;
+                                a.state = AppState::Tavern(TavernState::Main);
+                            }
+                        }
+                    }
+                },
                 KeyCode::Char(value) => {
                     if let Some(current) = app.borrow_mut().text_input.as_mut() {
                         current.push(value);
@@ -355,9 +378,51 @@ impl App {
                 }
                 KeyCode::Char('a') if has_char => { app.borrow_mut().state = AppState::AdventureMenu; }
                 KeyCode::Char('g') if has_char => { App::wasm_open_party(&app, &client).await; }
-                KeyCode::Char('o') | KeyCode::Char('r') if has_char => { app.borrow_mut().start_register_user(); }
+                KeyCode::Char('o') if has_char => { app.borrow_mut().state = AppState::Tavern(TavernState::Options); }
                 KeyCode::Char('v') => { app.borrow_mut().open_inventory(); }
                 KeyCode::Char('q') => App::wasm_reload(),
+                _ => {}
+            }
+            return;
+        }
+
+        // ── Tavern(Options) ───────────────────────────────────────────────────
+        if matches!(app.borrow().state, AppState::Tavern(TavernState::Options)) {
+            match key.code {
+                KeyCode::Char('c') => App::wasm_reload(),
+                KeyCode::Char('r') => {
+                    let mut a = app.borrow_mut();
+                    a.state = AppState::TextInput(Reason::Rename);
+                    a.text_input = Some("".to_string());
+                }
+                KeyCode::Char('p') => {
+                    let sel = app.borrow().palette_index;
+                    app.borrow_mut().state = AppState::Tavern(TavernState::PaletteSelect { selected: sel });
+                }
+                KeyCode::Esc | KeyCode::Char('q') => { app.borrow_mut().state = AppState::Tavern(TavernState::Main); }
+                _ => {}
+            }
+            return;
+        }
+
+        // ── Tavern(PaletteSelect) ─────────────────────────────────────────────
+        if matches!(app.borrow().state, AppState::Tavern(TavernState::PaletteSelect { .. })) {
+            let selected = if let AppState::Tavern(TavernState::PaletteSelect { selected }) = app.borrow().state { selected } else { 0 };
+            match key.code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    let s = selected.saturating_sub(1);
+                    app.borrow_mut().state = AppState::Tavern(TavernState::PaletteSelect { selected: s });
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    let s = (selected + 1).min(crate::ui::PALETTES.len() - 1);
+                    app.borrow_mut().state = AppState::Tavern(TavernState::PaletteSelect { selected: s });
+                }
+                KeyCode::Enter => {
+                    let mut a = app.borrow_mut();
+                    a.palette_index = selected;
+                    a.state = AppState::Tavern(TavernState::Options);
+                }
+                KeyCode::Esc | KeyCode::Char('q') => { app.borrow_mut().state = AppState::Tavern(TavernState::Options); }
                 _ => {}
             }
             return;
@@ -1445,7 +1510,7 @@ impl App {
                     }
                     KeyCode::Char('a') if has_char => self.state = AppState::AdventureMenu,
                     KeyCode::Char('g') if has_char => self.open_party().await,
-                    KeyCode::Char('o') | KeyCode::Char('r') if has_char => self.start_register_user(),
+                    KeyCode::Char('o') if has_char => self.state = AppState::Tavern(TavernState::Options),
                     KeyCode::Char('v') => self.open_inventory(),
                     KeyCode::Char('q') => self.exit(),
                     _ => {}
@@ -1488,23 +1553,56 @@ impl App {
                 }
             }
 
-            AppState::TextInput(_) => match key_event.code {
-                KeyCode::Enter => self.finish_register_user().await,
-                KeyCode::Char(value) => match self.text_input.as_mut() {
-                    Some(current) => {
-                        current.push(value);
-                    }
-                    _ => {}
-                },
-                KeyCode::Backspace => match self.text_input.as_mut() {
-                    Some(current) => {
-                        current.pop();
-                    }
-                    _ => {}
-                },
-                KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
+            AppState::Tavern(TavernState::Options) => match key_event.code {
+                KeyCode::Char('c') => self.start_register_user(),
+                KeyCode::Char('r') => {
+                    self.text_input = Some("".to_string());
+                    self.state = AppState::TextInput(Reason::Rename);
+                }
+                KeyCode::Char('p') => {
+                    let sel = self.palette_index;
+                    self.state = AppState::Tavern(TavernState::PaletteSelect { selected: sel });
+                }
+                KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Main),
                 _ => {}
             },
+
+            AppState::Tavern(TavernState::PaletteSelect { selected }) => {
+                let selected = *selected;
+                match key_event.code {
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        self.state = AppState::Tavern(TavernState::PaletteSelect { selected: selected.saturating_sub(1) });
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        let s = (selected + 1).min(crate::ui::PALETTES.len() - 1);
+                        self.state = AppState::Tavern(TavernState::PaletteSelect { selected: s });
+                    }
+                    KeyCode::Enter => {
+                        self.palette_index = selected;
+                        self.state = AppState::Tavern(TavernState::Options);
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Tavern(TavernState::Options),
+                    _ => {}
+                }
+            }
+
+            AppState::TextInput(_) => {
+                let reason = match &self.state { AppState::TextInput(r) => *r, _ => unreachable!() };
+                match key_event.code {
+                    KeyCode::Enter => match reason {
+                        Reason::Rename => self.finish_rename_character().await,
+                        _ => self.finish_register_user().await,
+                    },
+                    KeyCode::Char(value) => {
+                        if let Some(current) = self.text_input.as_mut() { current.push(value); }
+                    }
+                    KeyCode::Backspace => {
+                        if let Some(current) = self.text_input.as_mut() { current.pop(); }
+                    }
+                    KeyCode::Esc => self.state = AppState::Tavern(TavernState::Main),
+                    _ => {}
+                }
+            }
 
             AppState::PartyLobby { .. } => match key_event.code {
                 KeyCode::Char('1') => self.join_party_from_lobby(0).await,
@@ -1662,6 +1760,12 @@ impl App {
         Ok(())
     }
 
+    pub fn c_text(&self)   -> ratatui::style::Color { crate::ui::PALETTES[self.palette_index].text }
+    pub fn c_alert(&self)  -> ratatui::style::Color { crate::ui::PALETTES[self.palette_index].alert }
+    pub fn c_accent(&self) -> ratatui::style::Color { crate::ui::PALETTES[self.palette_index].accent }
+    pub fn c_panel(&self)  -> ratatui::style::Color { crate::ui::PALETTES[self.palette_index].panel }
+    pub fn c_bg(&self)     -> ratatui::style::Color { crate::ui::PALETTES[self.palette_index].bg }
+
     fn get_and_clear_text_input(&mut self) -> Option<String> {
         let value = self.text_input.clone();
         self.text_input = None;
@@ -1731,6 +1835,20 @@ impl App {
 
     async fn register_user(&self, username: String) -> Option<User> {
         self.client.post_register_user(username).await.ok()
+    }
+
+    async fn finish_rename_character(&mut self) {
+        self.state = AppState::Tavern(TavernState::Main);
+        let name = self.get_and_clear_text_input();
+        if let Some(name) = name {
+            let uid = self.active_user.as_ref().map(|u| u.id);
+            if let Some(uid) = uid {
+                self.client.put_rename_character(uid, name.clone()).await.ok();
+                if let Some(ref mut cw) = self.active_character {
+                    cw.character.name = name;
+                }
+            }
+        }
     }
 
     async fn register_character(&mut self) {
@@ -2371,7 +2489,7 @@ impl App {
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let text_style = Style::default()
-            .fg(C_TEXT)
+            .fg(self.c_text())
             .add_modifier(Modifier::BOLD);
 
         if matches!(self.state, AppState::Welcome) {
@@ -2399,6 +2517,9 @@ impl Widget for &App {
         match &self.state {
             AppState::Tavern(sub) => {
                 self.render_tavern(parent_layout[1], buf, text_style, sub);
+            }
+            AppState::TextInput(Reason::Rename) => {
+                self.render_tavern(parent_layout[1], buf, text_style, &TavernState::Options);
             }
             AppState::TextInput(_) => {
                 let popup_width = 100.min(area.width.saturating_sub(4));

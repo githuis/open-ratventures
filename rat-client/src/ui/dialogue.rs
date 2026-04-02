@@ -9,7 +9,7 @@ use ratatui::{
 use ratback_types::quest_data::{Dialogue, DialogueOutcome};
 
 use crate::app::App;
-use crate::ui::{C_ACCENT, C_BG};
+
 
 impl App {
     pub(crate) fn render_dialogue(&self, area: Rect, buf: &mut Buffer, text_style: Style, dialogue: &Dialogue, current_node: &str) {
@@ -22,7 +22,7 @@ impl App {
             .title(Line::from(" Conversation ".bold()))
             .borders(Borders::ALL)
             .border_set(border::THICK)
-            .border_style(Style::default().fg(C_ACCENT));
+            .border_style(Style::default().fg(self.c_accent()));
 
         let mut lines = vec![
             Line::from(""),
@@ -32,17 +32,22 @@ impl App {
 
         let coins = self.active_character.as_ref().map(|c| c.character.coins as i32).unwrap_or(0);
 
+        let too_expensive = |o: &DialogueOutcome| match o {
+            DialogueOutcome::GiveItem { cost, .. } => coins < *cost,
+            DialogueOutcome::Reward { coins: c, .. } => *c < 0 && coins < c.unsigned_abs() as i32,
+            _ => false,
+        };
+
         let choice_locked = |choice: &ratback_types::quest_data::DialogueChoice| -> bool {
             match &choice.outcome {
-                Some(DialogueOutcome::GiveItem { cost, .. }) => coins < *cost,
+                Some(outcome) => too_expensive(outcome),
                 None => {
                     // read ahead: if every choice in the next node is locked, this path is a dead end
                     if let Some(next_id) = &choice.next {
                         if let Some(next_node) = dialogue.nodes.get(next_id.as_str()) {
                             !next_node.choices.is_empty()
-                                && next_node.choices.iter().all(|c| match &c.outcome {
-                                    Some(DialogueOutcome::GiveItem { cost, .. }) => coins < *cost,
-                                    _ => false,
+                                && next_node.choices.iter().all(|c| {
+                                    c.outcome.as_ref().map_or(false, too_expensive)
                                 })
                         } else {
                             false
@@ -51,7 +56,6 @@ impl App {
                         false
                     }
                 }
-                _ => false,
             }
         };
 
@@ -66,7 +70,7 @@ impl App {
                 lines.push(Line::from(vec![
                     Span::styled(
                         format!(" [{}] {} (not enough gold)", i + 1, choice.text),
-                        Style::default().fg(C_ACCENT),
+                        Style::default().fg(self.c_accent()),
                     ),
                 ]));
             }
@@ -76,7 +80,7 @@ impl App {
         Paragraph::new(lines)
             .block(block)
             .wrap(Wrap { trim: false })
-            .bg(C_BG)
+            .bg(self.c_bg())
             .render(inner, buf);
     }
 }
