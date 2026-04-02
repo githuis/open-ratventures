@@ -17,7 +17,7 @@ impl App {
         }
 
         // Phase 1: player attacks, count surviving monsters
-        let (encounter_cleared, monsters_alive) = {
+        let (encounter_cleared, monsters_alive, attacked_name, target_died) = {
             let quest = match self.active_quest.as_mut() {
                 Some(q) => q,
                 None => return,
@@ -27,13 +27,30 @@ impl App {
                 Some(Encounter::CombatEncounter(c)) => c,
                 _ => return,
             };
+            let attacked_name = combat.monsters.iter().find(|m| m.unit.health > 0).map(|m| m.name.clone());
             if let Some(target) = combat.monsters.iter_mut().find(|m| m.unit.health > 0) {
                 target.unit.health = (target.unit.health - damage).max(0);
             }
             let alive = combat.monsters.iter().filter(|m| m.unit.health > 0).count();
             combat.turn += 1;
-            (alive == 0, alive)
+            let target_died = attacked_name.as_ref().map_or(false, |name| {
+                combat.monsters.iter().find(|m| &m.name == name).map_or(false, |m| m.unit.health <= 0)
+            });
+            (alive == 0, alive, attacked_name, target_died)
         };
+        let attacker_name = self.active_character.as_ref().map(|c| c.character.name.clone()).unwrap_or_default();
+        if let Some(name) = &attacked_name {
+            self.combat_log.push(vec![
+                (attacker_name.clone(), true),
+                (" deals ".into(), false),
+                (damage.to_string(), true),
+                (" damage to ".into(), false),
+                (format!("{}.", name), false),
+            ]);
+            if target_died {
+                self.combat_log.push(vec![(format!("{} is slain!", name), false)]);
+            }
+        }
 
         // Phase 2: monster retaliation — each living monster attacks or uses an item
         if !encounter_cleared && monsters_alive > 0 {
@@ -58,7 +75,13 @@ impl App {
                     .sum()
             };
             let target_name = self.active_character.as_ref().map(|c| c.character.name.clone()).unwrap_or_default();
-            self.last_combat_damage = Some((monster_damage, target_name));
+            self.last_combat_damage = Some((monster_damage, target_name.clone()));
+            self.combat_log.push(vec![
+                ("Enemies deal ".into(), false),
+                (monster_damage.to_string(), true),
+                (" damage to ".into(), false),
+                (format!("{}!", target_name), true),
+            ]);
             if let Some(c) = self.active_character.as_mut() {
                 c.unit.health = (c.unit.health - monster_damage).max(0);
             }
@@ -70,6 +93,7 @@ impl App {
             }
         } else if encounter_cleared {
             self.last_combat_damage = None;
+            self.combat_log.push(vec![("All enemies defeated.".into(), false)]);
         }
 
         // push updated encounter state to backend
@@ -97,6 +121,8 @@ impl App {
             None => return,
         };
 
+        let item_name = inv_item.item.name.clone();
+        let char_name = self.active_character.as_ref().map(|c| c.character.name.clone()).unwrap_or_default();
         let mut encounter_cleared = false;
         match &inv_item.item.effect {
             ItemEffect::Damage(dmg) => {
@@ -104,8 +130,19 @@ impl App {
                 if let Some(quest) = self.active_quest.as_mut() {
                     let idx = quest.current_encounter as usize;
                     if let Some(Encounter::CombatEncounter(c)) = quest.encounters.get_mut(idx) {
+                        let target_name = c.monsters.iter().find(|m| m.unit.health > 0).map(|m| m.name.clone());
                         if let Some(target) = c.monsters.iter_mut().find(|m| m.unit.health > 0) {
                             target.unit.health = (target.unit.health - dmg).max(0);
+                        }
+                        if let Some(name) = target_name {
+                            self.combat_log.push(vec![
+                                (item_name.clone(), false),
+                                (" hits ".into(), false),
+                                (name, false),
+                                (" for ".into(), false),
+                                (dmg.to_string(), true),
+                                (" damage.".into(), false),
+                            ]);
                         }
                         if c.monsters.iter().all(|m| m.unit.health <= 0) {
                             encounter_cleared = true;
@@ -118,6 +155,13 @@ impl App {
                 if let Some(c) = self.active_character.as_mut() {
                     c.unit.health = (c.unit.health + heal).clamp(0, c.unit.max_health);
                 }
+                self.combat_log.push(vec![
+                    (item_name.clone(), false),
+                    (" restores ".into(), false),
+                    (heal.to_string(), true),
+                    (" HP to ".into(), false),
+                    (format!("{}.", char_name), true),
+                ]);
                 let update = self.active_user.as_ref()
                     .zip(self.active_character.as_ref())
                     .map(|(u, c)| (u.id, c.unit));
@@ -129,6 +173,12 @@ impl App {
                 if let Some(c) = self.active_character.as_mut() {
                     c.unit.health = c.unit.max_health;
                 }
+                self.combat_log.push(vec![
+                    (item_name.clone(), false),
+                    (" — ".into(), false),
+                    (char_name.clone(), true),
+                    (" fully restored!".into(), false),
+                ]);
                 let update = self.active_user.as_ref()
                     .zip(self.active_character.as_ref())
                     .map(|(u, c)| (u.id, c.unit));
@@ -142,6 +192,12 @@ impl App {
                     c.unit.max_health += amount;
                     c.unit.health = (c.unit.health + amount).min(c.unit.max_health);
                 }
+                self.combat_log.push(vec![
+                    (item_name.clone(), false),
+                    (" — max HP +".into(), false),
+                    (amount.to_string(), true),
+                    (".".into(), false),
+                ]);
                 let update = self.active_user.as_ref()
                     .zip(self.active_character.as_ref())
                     .map(|(u, c)| (u.id, c.unit));
@@ -167,6 +223,7 @@ impl App {
             let _ = self.client.put_encounters(quest_id, current_encounter, None, &encounters).await;
         }
         if encounter_cleared {
+            self.combat_log.push(vec![("All enemies defeated.".into(), false)]);
             self.state = AppState::Encounter(EncounterState::Combat { cleared: true });
         }
     }
@@ -240,20 +297,40 @@ impl App {
         if let Some((uid, unit)) = update { let _ = client.update_character_unit(uid, &unit).await; }
 
         // Player attacks
-        let (encounter_cleared, monsters_alive) = {
+        let (encounter_cleared, monsters_alive, attacked_name, target_died) = {
             let mut a = app.borrow_mut();
             let quest = match a.active_quest.as_mut() { Some(q) => q, None => return };
             let idx = quest.current_encounter as usize;
             let combat = match quest.encounters.get_mut(idx) {
                 Some(Encounter::CombatEncounter(c)) => c, _ => return,
             };
+            let attacked_name = combat.monsters.iter().find(|m| m.unit.health > 0).map(|m| m.name.clone());
             if let Some(t) = combat.monsters.iter_mut().find(|m| m.unit.health > 0) {
                 t.unit.health = (t.unit.health - damage).max(0);
             }
             let alive = combat.monsters.iter().filter(|m| m.unit.health > 0).count();
             combat.turn += 1;
-            (alive == 0, alive)
+            let target_died = attacked_name.as_ref().map_or(false, |name| {
+                combat.monsters.iter().find(|m| &m.name == name).map_or(false, |m| m.unit.health <= 0)
+            });
+            (alive == 0, alive, attacked_name, target_died)
         };
+        {
+            let mut a = app.borrow_mut();
+            let attacker_name = a.active_character.as_ref().map(|c| c.character.name.clone()).unwrap_or_default();
+            if let Some(name) = &attacked_name {
+                a.combat_log.push(vec![
+                    (attacker_name.clone(), true),
+                    (" deals ".into(), false),
+                    (damage.to_string(), true),
+                    (" damage to ".into(), false),
+                    (format!("{}.", name), false),
+                ]);
+                if target_died {
+                    a.combat_log.push(vec![(format!("{} is slain!", name), false)]);
+                }
+            }
+        }
 
         // Monsters retaliate
         if !encounter_cleared && monsters_alive > 0 {
@@ -273,7 +350,13 @@ impl App {
                 }).sum();
                 (dmg, a.active_character.as_ref().map(|c| c.character.name.clone()).unwrap_or_default())
             };
-            app.borrow_mut().last_combat_damage = Some((monster_damage, target_name));
+            app.borrow_mut().last_combat_damage = Some((monster_damage, target_name.clone()));
+            app.borrow_mut().combat_log.push(vec![
+                ("Enemies deal ".into(), false),
+                (monster_damage.to_string(), true),
+                (" damage to ".into(), false),
+                (format!("{}!", target_name), true),
+            ]);
             let update = {
                 let mut a = app.borrow_mut();
                 if let Some(c) = a.active_character.as_mut() { c.unit.health = (c.unit.health - monster_damage).max(0); }
@@ -281,7 +364,9 @@ impl App {
             };
             if let Some((uid, unit)) = update { let _ = client.update_character_unit(uid, &unit).await; }
         } else if encounter_cleared {
-            app.borrow_mut().last_combat_damage = None;
+            let mut a = app.borrow_mut();
+            a.last_combat_damage = None;
+            a.combat_log.push(vec![("All enemies defeated.".into(), false)]);
         }
 
         // Push encounter state
@@ -315,6 +400,8 @@ impl App {
         let inv_item = match app.borrow().inventory.get(index).cloned() {
             Some(i) => i, None => return,
         };
+        let item_name = inv_item.item.name.clone();
+        let char_name = app.borrow().active_character.as_ref().map(|c| c.character.name.clone()).unwrap_or_default();
         let mut encounter_cleared = false;
         match &inv_item.item.effect {
             ItemEffect::Damage(dmg) => {
@@ -323,8 +410,19 @@ impl App {
                 if let Some(q) = a.active_quest.as_mut() {
                     let idx = q.current_encounter as usize;
                     if let Some(Encounter::CombatEncounter(c)) = q.encounters.get_mut(idx) {
+                        let target_name = c.monsters.iter().find(|m| m.unit.health > 0).map(|m| m.name.clone());
                         if let Some(t) = c.monsters.iter_mut().find(|m| m.unit.health > 0) {
                             t.unit.health = (t.unit.health - dmg).max(0);
+                        }
+                        if let Some(name) = target_name {
+                            a.combat_log.push(vec![
+                                (item_name.clone(), false),
+                                (" hits ".into(), false),
+                                (name, false),
+                                (" for ".into(), false),
+                                (dmg.to_string(), true),
+                                (" damage.".into(), false),
+                            ]);
                         }
                         if c.monsters.iter().all(|m| m.unit.health <= 0) {
                             encounter_cleared = true;
@@ -339,6 +437,13 @@ impl App {
                     if let Some(c) = a.active_character.as_mut() {
                         c.unit.health = (c.unit.health + heal).clamp(0, c.unit.max_health);
                     }
+                    a.combat_log.push(vec![
+                        (item_name.clone(), false),
+                        (" restores ".into(), false),
+                        (heal.to_string(), true),
+                        (" HP to ".into(), false),
+                        (format!("{}.", char_name), true),
+                    ]);
                     a.active_user.as_ref().zip(a.active_character.as_ref()).map(|(u, c)| (u.id, c.unit))
                 };
                 if let Some((uid, unit)) = update { let _ = client.update_character_unit(uid, &unit).await; }
@@ -347,6 +452,12 @@ impl App {
                 let update = {
                     let mut a = app.borrow_mut();
                     if let Some(c) = a.active_character.as_mut() { c.unit.health = c.unit.max_health; }
+                    a.combat_log.push(vec![
+                        (item_name.clone(), false),
+                        (" — ".into(), false),
+                        (char_name.clone(), true),
+                        (" fully restored!".into(), false),
+                    ]);
                     a.active_user.as_ref().zip(a.active_character.as_ref()).map(|(u, c)| (u.id, c.unit))
                 };
                 if let Some((uid, unit)) = update { let _ = client.update_character_unit(uid, &unit).await; }
@@ -359,6 +470,12 @@ impl App {
                         c.unit.max_health += amount;
                         c.unit.health = (c.unit.health + amount).min(c.unit.max_health);
                     }
+                    a.combat_log.push(vec![
+                        (item_name.clone(), false),
+                        (" — max HP +".into(), false),
+                        (amount.to_string(), true),
+                        (".".into(), false),
+                    ]);
                     a.active_user.as_ref().zip(a.active_character.as_ref()).map(|(u, c)| (u.id, c.unit))
                 };
                 if let Some((uid, unit)) = update { let _ = client.update_character_unit(uid, &unit).await; }
@@ -380,7 +497,9 @@ impl App {
             let _ = client.put_encounters(qid, ce, None, &encs).await;
         }
         if encounter_cleared {
-            app.borrow_mut().state = AppState::Encounter(EncounterState::Combat { cleared: true });
+            let mut a = app.borrow_mut();
+            a.combat_log.push(vec![("All enemies defeated.".into(), false)]);
+            a.state = AppState::Encounter(EncounterState::Combat { cleared: true });
         }
     }
 

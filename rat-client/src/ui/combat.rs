@@ -1,6 +1,6 @@
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style, Stylize},
     symbols::border,
     text::{Line, Span},
@@ -30,6 +30,14 @@ impl App {
             .border_style(Style::default().fg(self.c_accent()))
             .bg(self.c_panel());
 
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(6)])
+            .split(inner);
+
         let mut lines = vec![
             Line::from(vec![
                 " Turn ".into(),
@@ -55,13 +63,6 @@ impl App {
         }
 
         lines.push(Line::from(""));
-        if let Some((dmg, target)) = &self.last_combat_damage {
-            lines.push(Line::from(vec![
-                " Monsters dealt ".into(),
-                Span::styled(dmg.to_string(), Style::default().fg(self.c_alert()).add_modifier(Modifier::BOLD)),
-                format!(" damage to {}!", target).into(),
-            ]));
-        }
         lines.push(Line::from(vec![
             " ".into(),
             Span::styled("[F]", text_style),
@@ -94,8 +95,35 @@ impl App {
         }
 
         Paragraph::new(lines)
-            .block(block)
             .bg(self.c_panel())
-            .render(area, buf);
+            .render(layout[0], buf);
+
+        // Combat log
+        let log_block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(self.c_accent()))
+            .bg(self.c_panel());
+        let log_inner = log_block.inner(layout[1]);
+        log_block.render(layout[1], buf);
+
+        let log_height = log_inner.height as usize;
+        let log_lines: Vec<Line> = self.combat_log.iter()
+            .rev()
+            .take(log_height)
+            .rev()
+            .map(|entry| {
+                Line::from(entry.iter().map(|(text, highlighted)| {
+                    if *highlighted {
+                        Span::styled(text.as_str(), text_style)
+                    } else {
+                        Span::raw(text.as_str())
+                    }
+                }).collect::<Vec<_>>())
+            })
+            .collect();
+
+        Paragraph::new(log_lines)
+            .bg(self.c_panel())
+            .render(log_inner, buf);
     }
 }

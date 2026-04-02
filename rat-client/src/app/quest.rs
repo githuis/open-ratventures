@@ -113,6 +113,7 @@ impl App {
             }
             Some(Encounter::CombatEncounter(_)) => {
                 self.last_combat_damage = None;
+                self.combat_log.clear();
                 self.state = AppState::Encounter(EncounterState::Combat { cleared: false });
             }
             _ => {
@@ -389,6 +390,7 @@ impl App {
             Some(Encounter::CombatEncounter(_)) => {
                 let mut a = app.borrow_mut();
                 a.last_combat_damage = None;
+                a.combat_log.clear();
                 a.state = AppState::Encounter(EncounterState::Combat { cleared: false });
             }
             _ => { app.borrow_mut().state = AppState::Main; }

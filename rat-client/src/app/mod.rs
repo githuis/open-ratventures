@@ -35,6 +35,7 @@ pub struct App {
     pub text_input: Option<String>,
     pub client: Rattp,
     pub last_combat_damage: Option<(i32, String)>,
+    pub combat_log: Vec<Vec<(String, bool)>>,
     pub inventory: Vec<InventoryItem>,
     pub backend_version: Option<String>,
     pub missions: Vec<MissionStatus>,

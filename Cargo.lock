@@ -2134,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "rat-client"
-version = "1.0.0"
+version = "1.1.1"
 dependencies = [
  "color-eyre",
  "crossterm",
@@ -2240,7 +2240,7 @@ dependencies = [
 
 [[package]]
 name = "ratback"
-version = "1.0.0"
+version = "1.0.5"
 dependencies = [
  "axum",
  "color-eyre",
