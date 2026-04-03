@@ -2,7 +2,7 @@
 
 Ratventures with friends, in the terminal!
 
-**Play now at [ratventure.online](https://ratventure.online)**
+### **Play now at [ratventure.online](https://ratventure.online)**
 
 Go on quests with up to 2 friends, defeat monsters, solve riddles, and explore the depths of the sewer underworld. Built with Rust — a ratatui TUI client talking to an axum/SQLite backend.
 
